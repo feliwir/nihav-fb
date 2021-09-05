@@ -10,6 +10,7 @@ extern crate nihav_codec_support;
 mod codecs;
 
 pub use crate::codecs::duck_register_all_decoders;
+pub use crate::codecs::duck_register_all_encoders;
 
 #[cfg(test)]
 extern crate nihav_commonfmt;
