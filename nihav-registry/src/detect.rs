@@ -231,6 +231,11 @@ const DETECTORS: &[DetectConditions] = &[
                                                                 &CC::Str(b"ftyp")) }],
     },
     DetectConditions {
+        demux_name: "yuv4mpeg",
+        extensions: ".y4m",
+        conditions: &[CheckItem{offs: 0, cond: &CC::Str(b"YUV4MPEG2 ") }],
+    },
+    DetectConditions {
         demux_name: "fcmp",
         extensions: ".cmp",
         conditions: &[CheckItem{offs: 0, cond: &CC::Str(b"FCMP")}],

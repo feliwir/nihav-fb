@@ -14,6 +14,8 @@ mod avi;
 mod mov;
 #[cfg(feature="demuxer_wav")]
 mod wav;
+#[cfg(feature="demuxer_y4m")]
+mod y4m;
 
 const DEMUXERS: &[&dyn DemuxerCreator] = &[
 #[cfg(feature="demuxer_avi")]
@@ -22,6 +24,8 @@ const DEMUXERS: &[&dyn DemuxerCreator] = &[
     &mov::MOVDemuxerCreator {},
 #[cfg(feature="demuxer_wav")]
     &wav::WAVDemuxerCreator {},
+#[cfg(feature="demuxer_y4m")]
+    &y4m::Y4MDemuxerCreator {},
 ];
 
 /// Registers all available demuxers provided by this crate.
