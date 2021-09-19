@@ -185,6 +185,9 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(audio;    "atrac3",     "Sony Atrac3"),
     desc!(audio;    "sipro",      "Sipro Labs ADPCM"),
 
+
+    desc!(video-ll; "rawvideo",   "Raw video data"),
+
     desc!(video;    "cinepak",    "Cinepak"),
 
     desc!(video-llp; "zmbv",      "Zip Motion Blocks Video"),
