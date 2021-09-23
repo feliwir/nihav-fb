@@ -689,5 +689,40 @@ mod test {
                             [0x11b048ac, 0xedb3e471, 0xd04e9399, 0x64e623e3],
                             [0x182871b1, 0x2146893a, 0x2912210e, 0x6dd592e8]]));
     }
-    // todo find good sample for vp6a test
+    #[test]
+    fn test_vp6_alpha() {
+        let mut dmx_reg = RegisteredDemuxers::new();
+        generic_register_all_demuxers(&mut dmx_reg);
+        let mut dec_reg = RegisteredDecoders::new();
+        duck_register_all_decoders(&mut dec_reg);
+
+        test_decoding("avi", "vp6a", "assets/Duck/vp6a.avi", Some(25),
+                      &dmx_reg, &dec_reg, ExpectedTestResult::MD5Frames(vec![
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xaf903d79, 0x17ddb3c7, 0xf0a381e8, 0x26b36a7d],
+                            [0xd3801a96, 0x1b5384ff, 0x422b228c, 0x9c4582c4],
+                            [0x8ddb0dfe, 0x302eb1ed, 0x10e64e22, 0x5a5a62b9],
+                            [0x79338328, 0x06113781, 0x8b116d18, 0xde56707e],
+                            [0x671fa1b3, 0x0b3e41e9, 0xeb3a494c, 0xcdd24b1b]]));
+    }
 }
