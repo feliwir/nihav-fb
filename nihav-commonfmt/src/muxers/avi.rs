@@ -171,11 +171,7 @@ impl<'a> MuxCore<'a> for AVIMuxer<'a> {
                     let hdr_pos = self.bw.tell();
                     self.bw.write_u32le(0)?;
                     self.bw.write_u32le(vinfo.width as u32)?;
-                    if vinfo.flipped {
-                        self.bw.write_u32le((-(vinfo.height as i32)) as u32)?;
-                    } else {
-                        self.bw.write_u32le(vinfo.height as u32)?;
-                    }
+                    self.bw.write_u32le(vinfo.height as u32)?;
                     self.bw.write_u16le(vinfo.format.components as u16)?;
                     self.bw.write_u16le(vinfo.format.get_total_depth() as u16)?;
                     let fcc = find_avi_fourcc(str.get_info().get_name());
