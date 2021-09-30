@@ -17,6 +17,8 @@ mod ratectl;
 use ratectl::*;
 mod rdo;
 
+const VERSION_VP61: u8 = VERSION_VP60 + 1;
+
 enum VP6Writer<'a, 'b> {
     BoolCoder(BoolEncoder<'a, 'b>),
     Huffman(HuffEncoder<'a, 'b>),
@@ -414,7 +416,7 @@ impl VP6Encoder {
         self.pmodels.reset(false);
         self.pmodels.reset_mbtype_models();
 
-        let multistream = self.huffman;
+        let multistream = self.huffman || self.version != VERSION_VP60;
 
         self.fenc.prepare_intra_blocks();
         self.fenc.apply_dc_prediction(&mut self.dc_pred);
@@ -464,7 +466,7 @@ impl VP6Encoder {
     fn encode_inter(&mut self, bw: &mut ByteWriter, quant: usize) -> EncoderResult<bool> {
         self.stats.reset();
 
-        let multistream = !self.huffman;
+        let multistream = self.huffman || self.version != VERSION_VP60;
         let loop_filter = false;
 
         self.fenc.prepare_intra_blocks();
@@ -751,6 +753,7 @@ impl NAEncoder for VP6Encoder {
 
 const HUFFMAN_OPTION: &str = "huffman";
 const QUANT_OPTION: &str = "quant";
+const VERSION_OPTION: &str = "version";
 const MV_SEARCH_OPTION: &str = "mv_mode";
 const MV_RANGE_OPTION: &str = "mv_range";
 
@@ -761,6 +764,9 @@ const ENCODER_OPTS: &[NAOptionDefinition] = &[
     NAOptionDefinition {
         name: HUFFMAN_OPTION, description: "use Huffman encoding",
         opt_type: NAOptionDefinitionType::Bool },
+    NAOptionDefinition {
+        name: VERSION_OPTION, description: "codec minor version",
+        opt_type: NAOptionDefinitionType::String(Some(&["vp60", "vp61", "vp62"])) },
     NAOptionDefinition {
         name: QUANT_OPTION, description: "force fixed quantiser for encoding",
         opt_type: NAOptionDefinitionType::Int(Some(-1), Some(63)) },
@@ -787,6 +793,16 @@ impl NAOptionHandler for VP6Encoder {
                         HUFFMAN_OPTION => {
                             if let NAValue::Bool(bval) = option.value {
                                 self.huffman = bval;
+                            }
+                        },
+                        VERSION_OPTION => {
+                            if let NAValue::String(ref string) = option.value {
+                                self.version = match string.as_str() {
+                                        "vp60" => VERSION_VP60,
+                                        "vp61" => VERSION_VP61,
+                                        "vp62" => VERSION_VP62,
+                                        _ => unreachable!(),
+                                    };
                             }
                         },
                         QUANT_OPTION => {
@@ -816,6 +832,15 @@ impl NAOptionHandler for VP6Encoder {
         match name {
             KEYFRAME_OPTION => Some(NAValue::Int(i64::from(self.key_int))),
             HUFFMAN_OPTION => Some(NAValue::Bool(self.huffman)),
+            VERSION_OPTION => {
+                    let ver = match self.version {
+                            VERSION_VP60 => "vp60",
+                            VERSION_VP61 => "vp61",
+                            VERSION_VP62 => "vp62",
+                            _ => unreachable!(),
+                        };
+                    Some(NAValue::String(ver.to_string()))
+                },
             QUANT_OPTION => if let Some(q) = self.force_q {
                     Some(NAValue::Int(q as i64))
                 } else {
@@ -888,13 +913,13 @@ mod test {
         let enc_options = &[
                 NAOption { name: super::QUANT_OPTION, value: NAValue::Int(42) },
             ];
-        encode_test("vp6-bool.avi", enc_options, &[0x3649ebc5, 0x4ed1cd7d, 0x1ad40c7b, 0xadd30276]);
+        encode_test("vp6-bool.avi", enc_options, &[0xb57f49e5, 0x6b48accd, 0xc28fadb3, 0xc89a30d2]);
     }
     #[test]
     fn test_vp6_encoder_rc() {
         let enc_options = &[
             ];
-        encode_test("vp6-rc.avi", enc_options, &[0x97f3ea9d, 0x5374d30f, 0xf900a594, 0xbfa34b0f]);
+        encode_test("vp6-rc.avi", enc_options, &[0x790baca9, 0x663eafcf, 0x36d1bed8, 0xddf882de]);
     }
     #[test]
     fn test_vp6_encoder_huff() {
@@ -902,6 +927,6 @@ mod test {
                 NAOption { name: super::HUFFMAN_OPTION, value: NAValue::Bool(true) },
                 NAOption { name: super::QUANT_OPTION, value: NAValue::Int(42) },
             ];
-        encode_test("vp6-huff.avi", enc_options, &[0x4558af0a, 0x4d260b6b, 0x16b7c501, 0x178f42c5]);
+        encode_test("vp6-huff.avi", enc_options, &[0x6e9bb23d, 0xde296d92, 0x4c225bae, 0x3651e31f]);
     }
 }
