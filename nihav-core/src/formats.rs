@@ -1065,8 +1065,8 @@ fn parse_yuv_format(s: &str) -> Result<NAPixelFormaton, FormatParseError> {
             444 => [[0, 0], [0, 0], [0, 0], [0, 0]],
             _ => return Err(FormatParseError {}),
         };
-    for (chro, ss) in chromatons.iter_mut().take(components as usize).zip(subsamp.iter()) {
-        *chro = Some(NAPixelChromaton{ h_ss: ss[0], v_ss: ss[1], packed: !is_planar, depth, shift: 0, comp_offs: next_elem, next_elem });
+    for (i, (chro, ss)) in chromatons.iter_mut().take(components as usize).zip(subsamp.iter()).enumerate() {
+        *chro = Some(NAPixelChromaton{ h_ss: ss[0], v_ss: ss[1], packed: !is_planar, depth, shift: 0, comp_offs: if is_planar { i as u8 } else { next_elem }, next_elem });
     }
     Ok(NAPixelFormaton { model: ColorModel::YUV(YUVSubmodel::YUVJ),
                          components,
