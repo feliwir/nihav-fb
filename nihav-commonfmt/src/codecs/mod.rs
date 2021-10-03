@@ -10,6 +10,8 @@ mod cinepak;
 mod clearvideo;
 #[cfg(feature="decoder_rawvideo")]
 mod rawvideo;
+#[cfg(feature="decoder_rawvideo_ms")]
+mod rawvideo_ms;
 #[cfg(feature="decoder_zmbv")]
 mod zmbv;
 
@@ -40,6 +42,8 @@ const DECODERS: &[DecoderInfo] = &[
     DecoderInfo { name: "clearvideo_rm", get_decoder: clearvideo::get_decoder_rm },
 #[cfg(feature="decoder_rawvideo")]
     DecoderInfo { name: "rawvideo", get_decoder: rawvideo::get_decoder },
+#[cfg(feature="decoder_rawvideo_ms")]
+    DecoderInfo { name: "rawvideo-ms", get_decoder: rawvideo_ms::get_decoder },
 #[cfg(feature="decoder_zmbv")]
     DecoderInfo { name: "zmbv", get_decoder: zmbv::get_decoder },
 

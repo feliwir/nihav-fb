@@ -187,6 +187,7 @@ static CODEC_REGISTER: &[CodecDescription] = &[
 
 
     desc!(video-ll; "rawvideo",   "Raw video data"),
+    desc!(video-ll; "rawvideo-ms", "Raw video data"),
 
     desc!(video;    "cinepak",    "Cinepak"),
 

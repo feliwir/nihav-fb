@@ -1,6 +1,7 @@
 use nihav_core::demuxers::*;
 use nihav_registry::register;
 use nihav_core::demuxers::DemuxerError::*;
+use std::str::FromStr;
 
 macro_rules! mktag {
     ($a:expr, $b:expr, $c:expr, $d:expr) => ({
@@ -423,6 +424,14 @@ fn parse_strf_vids(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize
     let format = if bitcount > 8 { RGB24_FORMAT } else { PAL8_FORMAT };
     let mut vhdr = NAVideoInfo::new(width as usize, if flip { -height as usize } else { height as usize}, flip, format);
     vhdr.bits = (planes as u8) * (bitcount as u8);
+    let cname = if find_raw_fmt(&compression, planes, bitcount, &mut vhdr) {
+            "rawvideo-ms"
+        } else {
+            match register::find_codec_from_avi_fourcc(&compression) {
+                None => "unknown",
+                Some(name) => name,
+            }
+        };
     let vci = NACodecTypeInfo::Video(vhdr);
     let edata = dmx.read_extradata(size - 40)?;
     if colors > 0 {
@@ -438,15 +447,36 @@ fn parse_strf_vids(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize
             dmx.pal.push(pal);
         }
     }
-    let cname = match register::find_codec_from_avi_fourcc(&compression) {
-                    None => "unknown",
-                    Some(name) => name,
-                };
     let vinfo = NACodecInfo::new(cname, vci, edata);
     let res = strmgr.add_stream(NAStream::new(StreamType::Video, u32::from(dmx.sstate.strm_no), vinfo, dmx.tb_num, dmx.tb_den, u64::from(dmx.strm_duration)));
     if res.is_none() { return Err(MemoryError); }
     dmx.sstate.reset();
     Ok(size)
+}
+
+fn find_raw_fmt(compr: &[u8; 4], planes: u16, bitcount: u16, vhdr: &mut NAVideoInfo) -> bool {
+    match compr {
+        &[0, 0, 0, 0] | b"DIB " => {
+            if planes != 1 {
+                return false;
+            }
+            let fmt_name = match bitcount {
+                     8 => "pal8",
+                    16 => "bgr555",
+                    24 => "bgr24",
+                    32 => "bgra24",
+                    _ => return false,
+                };
+            if let Ok(fmt) = NAPixelFormaton::from_str(fmt_name) {
+                vhdr.format = fmt;
+                vhdr.flipped = true;
+                true
+            } else {
+                false
+            }
+        },
+        _ => false,
+    }
 }
 
 #[allow(unused_variables)]
