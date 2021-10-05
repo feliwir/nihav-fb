@@ -236,6 +236,8 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(video;    "fable-imax",    "Fable IMAX video"),
     desc!(video;    "fst-video",     "FutureVision video"),
     desc!(audio;    "fst-audio",     "FutureVision audio"),
+    desc!(video-llp; "ipma",         "Imagination Pilots Matte Animation"),
+    desc!(video-llp; "ipma2",        "Imagination Pilots Matte Animation v2"),
     desc!(video;    "legend-q-video", "Legend Entertainment Q video"),
     desc!(video;    "midivid",       "MidiVid"),
     desc!(video;    "midivid3",      "MidiVid 3"),
@@ -289,6 +291,9 @@ static AVI_VIDEO_CODEC_REGISTER: &[(&[u8;4], &str)] = &[
     (b"UCOD", "clearvideo"),
     (b"cvid", "cinepak"),
     (b"ZMBV", "zmbv"),
+
+    (b"Ipma", "ipma"),
+    (b"Ip20", "ipma2"),
 
     (b"MVDV", "midivid"),
     (b"MV30", "midivid3"),
