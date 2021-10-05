@@ -387,6 +387,15 @@ pub fn flip_picture(pic: &mut NABufferType) -> ScaleResult<()> {
                 let mut line1 = vec![0; stride];
                 swap_plane(&mut data[off..], stride, h, line0.as_mut_slice(), line1.as_mut_slice());
             }
+            if ncomp == 0 && vb.get_stride(0) != 0 {
+                let off    = vb.get_offset(0);
+                let stride = vb.get_stride(0);
+                let (_, h) = vb.get_dimensions(0);
+                let data = vb.get_data_mut().unwrap();
+                let mut line0 = vec![0; stride];
+                let mut line1 = vec![0; stride];
+                swap_plane(&mut data[off..], stride, h, line0.as_mut_slice(), line1.as_mut_slice());
+            }
         },
         _ => { return Err(ScaleError::InvalidArgument); },
     };
