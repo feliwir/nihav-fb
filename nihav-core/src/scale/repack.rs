@@ -153,7 +153,7 @@ println!(" [intermediate format {}]", df);
     }
     fn process(&mut self, pic_in: &NABufferType, pic_out: &mut NABufferType) {
         if let Some(ref buf) = pic_in.get_vbuf() {
-            let step = buf.get_info().get_format().get_chromaton(0).unwrap().get_step() as usize;
+            let step = buf.get_info().get_format().elem_size as usize;
             let mut soff: [usize; MAX_CHROMATONS] = [0; MAX_CHROMATONS];
             for i in 0..self.ncomps {
                 soff[i] = buf.get_info().get_format().get_chromaton(i).unwrap().get_offset() as usize;
@@ -163,6 +163,7 @@ println!(" [intermediate format {}]", df);
             let istride = buf.get_stride(0);
             let sdata1 = buf.get_data();
             let sdata = &sdata1[ioff..];
+            let ychr = buf.get_info().get_format().get_chromaton(0).unwrap();
             if let Some(ref mut dbuf) = pic_out.get_vbuf() {
                 let mut ostride: [usize; MAX_CHROMATONS] = [0; MAX_CHROMATONS];
                 let mut offs: [usize; MAX_CHROMATONS] = [0; MAX_CHROMATONS];
@@ -171,13 +172,35 @@ println!(" [intermediate format {}]", df);
                     offs[i]    = dbuf.get_offset(i);
                 }
                 let dst = dbuf.get_data_mut().unwrap();
-                for src in sdata.chunks(istride).take(h) {
-                    for x in 0..w {
-                        for i in 0..self.ncomps {
-                            dst[offs[i] + x] = src[x * step + soff[i]];
+                if ychr.next_elem == 0 || usize::from(ychr.next_elem) == step {
+                    for src in sdata.chunks(istride).take(h) {
+                        for x in 0..w {
+                            for i in 0..self.ncomps {
+                                dst[offs[i] + x] = src[x * step + soff[i]];
+                            }
                         }
+                        for i in 0..self.ncomps { offs[i] += ostride[i]; }
                     }
-                    for i in 0..self.ncomps { offs[i] += ostride[i]; }
+                } else {
+                    let mut steps: [usize; MAX_CHROMATONS] = [0; MAX_CHROMATONS];
+                    for i in 0..self.ncomps {
+                        steps[i] = buf.get_info().get_format().get_chromaton(i).unwrap().next_elem as usize;
+                    }
+
+                    for src in sdata.chunks(istride).take(h) {
+                        let mut x = offs;
+                        for piece in src.chunks(step) {
+                            for i in 0..self.ncomps {
+                                let mut co = soff[i];
+                                while co < step {
+                                    dst[x[i]] = piece[co];
+                                    x[i] += 1;
+                                    co += steps[i];
+                                }
+                            }
+                        }
+                        for i in 0..self.ncomps { offs[i] += ostride[i]; }
+                    }
                 }
             } else {
 unimplemented!();
