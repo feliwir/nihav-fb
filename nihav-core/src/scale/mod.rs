@@ -250,13 +250,22 @@ fn is_better_fmt(a: &ScaleInfo, b: &ScaleInfo) -> bool {
     }
     false
 }
+fn fmt_needs_scale(ifmt: &NAPixelFormaton, ofmt: &NAPixelFormaton) -> bool {
+    for (ichr, ochr) in ifmt.comp_info.iter().zip(ofmt.comp_info.iter()) {
+        if let (Some(ic), Some(oc)) = (ichr, ochr) {
+            if ic.h_ss != oc.h_ss || ic.v_ss != oc.v_ss {
+                return true;
+            }
+        }
+    }
+    false
+}
 fn build_pipeline(ifmt: &ScaleInfo, ofmt: &ScaleInfo, just_convert: bool) -> ScaleResult<Option<Stage>> {
     let inname  = ifmt.fmt.get_model().get_short_name();
     let outname = ofmt.fmt.get_model().get_short_name();
 
 println!("convert {} -> {}", ifmt, ofmt);
-    let needs_scale = if (ofmt.fmt.get_max_subsampling() > 0) &&
-        (ofmt.fmt.get_max_subsampling() != ifmt.fmt.get_max_subsampling()) {
+    let needs_scale = if fmt_needs_scale(&ifmt.fmt, &ofmt.fmt) {
             true
         } else {
             !just_convert
