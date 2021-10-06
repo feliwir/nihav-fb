@@ -59,8 +59,12 @@ impl NADecoder for RawDecoder {
 
                     NABufferType::Video(NAVideoBuffer::from_raw_parts(vinfo.clone(), src.clone(), offs, strides).into_ref())
                 } else {
-                    let offs    = vec![0; ncomp];
-                    let strides = vec![0; ncomp];
+                    let esize = vinfo.format.elem_size as usize;
+                    let ychr = vinfo.format.get_chromaton(0).unwrap();
+                    let ystep = if ychr.next_elem != 0 { ychr.next_elem as usize } else { esize };
+                    let stride = (width * esize + ystep - 1) / ystep;
+                    let offs    = vec![0];
+                    let strides = vec![stride];
                     NABufferType::VideoPacked(NAVideoBuffer::from_raw_parts(vinfo.clone(), src.clone(), offs, strides).into_ref())
                 };
 
