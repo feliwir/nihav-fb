@@ -530,9 +530,9 @@ mod test {
         let uoff = obuf.get_offset(1);
         let voff = obuf.get_offset(2);
         let odata = obuf.get_data();
-        assert_eq!(odata[yoff], 28);
-        assert_eq!(odata[uoff], 154);
-        assert_eq!(odata[voff], 103);
+        assert_eq!(odata[yoff], 11);
+        assert_eq!(odata[uoff], 162);
+        assert_eq!(odata[voff], 118);
     }
     #[test]
     fn test_scale_and_convert_to_pal() {
@@ -550,7 +550,7 @@ mod test {
         let odata = obuf.get_data();
         assert_eq!(odata[dataoff], 0);
         assert_eq!(odata[paloff], 157);
-        assert_eq!(odata[paloff + 1], 99);
+        assert_eq!(odata[paloff + 1], 129);
         assert_eq!(odata[paloff + 2], 170);
     }
 }

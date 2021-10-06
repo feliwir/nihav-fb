@@ -1,6 +1,8 @@
 use super::*;
 use super::kernel::Kernel;
 
+const DEFAULT_YUV: usize = 4;
+
 const YUV_PARAMS: &[[f32; 2]] = &[
     [ 0.333,    0.333   ], // RGB
     [ 0.2126,   0.0722  ], // ITU-R BT709
@@ -172,7 +174,7 @@ impl Kernel for RgbToYuv {
     fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
         let mut df = dest_fmt.fmt;
 //todo coeff selection
-        make_rgb2yuv(YUV_PARAMS[2][0], YUV_PARAMS[2][1], &mut self.matrix);
+        make_rgb2yuv(YUV_PARAMS[DEFAULT_YUV][0], YUV_PARAMS[DEFAULT_YUV][1], &mut self.matrix);
         if let ColorModel::YUV(yuvsm) = df.get_model() {
             match yuvsm {
             YUVSubmodel::YCbCr  => {},
@@ -302,12 +304,12 @@ impl Kernel for YuvToRgb {
             }
         }
 //todo coeff selection
-        make_yuv2rgb(YUV_PARAMS[2][0], YUV_PARAMS[2][1], &mut self.matrix);
+        make_yuv2rgb(YUV_PARAMS[DEFAULT_YUV][0], YUV_PARAMS[DEFAULT_YUV][1], &mut self.matrix);
         if let ColorModel::YUV(yuvsm) = in_fmt.fmt.get_model() {
             match yuvsm {
                 YUVSubmodel::YCbCr  => {},
                 YUVSubmodel::YIQ    => {
-                    make_rgb2yuv(YUV_PARAMS[2][0], YUV_PARAMS[2][1], &mut self.matrix);
+                    make_rgb2yuv(YUV_PARAMS[DEFAULT_YUV][0], YUV_PARAMS[DEFAULT_YUV][1], &mut self.matrix);
                     apply_ntsc_rgb2yiq(SMPTE_NTSC_COEFFS, &mut self.matrix);
                     invert_matrix(&mut self.matrix);
                 },
