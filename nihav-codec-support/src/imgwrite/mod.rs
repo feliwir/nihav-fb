@@ -1,7 +1,9 @@
 //! Simple PNM image writers for RGB and YUV images.
 use std::io::prelude::*;
 use std::fs::File;
-use nihav_core::frame::{NABufferType, NAFrameRef};
+use nihav_core::frame::{NABufferType, NAFrameRef, NAFrame, alloc_video_buffer};
+use nihav_core::scale::*;
+use nihav_core::formats::YUV420_FORMAT;
 
 /// Writes PGMYUV for input frame.
 pub fn write_pgmyuv(name: &str, frm: NAFrameRef) -> std::io::Result<()> {
@@ -241,7 +243,21 @@ pub fn write_pnm(pfx: &str, strno: usize, num: u64, frm: NAFrameRef) -> std::io:
         write_palppm(name.as_str(), frm)
     } else if vinfo.get_format().get_model().is_yuv() {
         let name = format!("{}{:02}_{:06}.pgm", pfx, strno, num);
-        write_pgmyuv(name.as_str(), frm)
+        if vinfo.get_format().is_unpacked() {
+            write_pgmyuv(name.as_str(), frm)
+        } else {
+            let mut dst_vinfo = vinfo;
+            dst_vinfo.format = YUV420_FORMAT;
+            let mut cvt_buf = alloc_video_buffer(dst_vinfo, 2).unwrap();
+            let buf = frm.get_buffer();
+
+            let ifmt = get_scale_fmt_from_pic(&buf);
+            let ofmt = get_scale_fmt_from_pic(&cvt_buf);
+            let mut scaler = NAScale::new(ifmt, ofmt).unwrap();
+            scaler.convert(&buf, &mut cvt_buf).unwrap();
+            let frm = NAFrame::new(frm.get_time_information(), frm.frame_type, frm.key, frm.get_info(), cvt_buf);
+            write_pgmyuv(name.as_str(), frm.into_ref())
+        }
     } else if vinfo.get_format().get_model().is_rgb() {
         let name = format!("{}{:02}_{:06}.ppm", pfx, strno, num);
         write_rgbppm(name.as_str(), frm)
