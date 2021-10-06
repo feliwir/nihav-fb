@@ -424,8 +424,10 @@ fn parse_strf_vids(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize
     let format = if bitcount > 8 { RGB24_FORMAT } else { PAL8_FORMAT };
     let mut vhdr = NAVideoInfo::new(width as usize, if flip { -height as usize } else { height as usize}, flip, format);
     vhdr.bits = (planes as u8) * (bitcount as u8);
-    let cname = if find_raw_fmt(&compression, planes, bitcount, flip, &mut vhdr) {
+    let cname = if find_raw_rgb_fmt(&compression, planes, bitcount, flip, &mut vhdr) {
             "rawvideo-ms"
+        } else if find_raw_yuv_fmt(&compression, &mut vhdr) {
+            "rawvideo"
         } else {
             match register::find_codec_from_avi_fourcc(&compression) {
                 None => "unknown",
@@ -454,7 +456,7 @@ fn parse_strf_vids(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize
     Ok(size)
 }
 
-fn find_raw_fmt(compr: &[u8; 4], planes: u16, bitcount: u16, flip: bool, vhdr: &mut NAVideoInfo) -> bool {
+fn find_raw_rgb_fmt(compr: &[u8; 4], planes: u16, bitcount: u16, flip: bool, vhdr: &mut NAVideoInfo) -> bool {
     match compr {
         &[0, 0, 0, 0] | b"DIB " => {
             if planes != 1 {
@@ -476,6 +478,25 @@ fn find_raw_fmt(compr: &[u8; 4], planes: u16, bitcount: u16, flip: bool, vhdr: &
             }
         },
         _ => false,
+    }
+}
+
+fn find_raw_yuv_fmt(compr: &[u8; 4], vhdr: &mut NAVideoInfo) -> bool {
+    let (fmt_name, swapuv) = match compr {
+            b"UYVY" | b"UYNY" | b"UYNV" | b"2vuy" => ("uyvy", false),
+            b"I420" | b"IYUV" => ("yuv420p", false),
+            b"YV12" => ("yuv420p", true),
+            b"YVU9" => ("yuv410p", true),
+            _ => return false,
+        };
+    if let Ok(fmt) = NAPixelFormaton::from_str(fmt_name) {
+        vhdr.format = fmt;
+        if swapuv {
+            vhdr.format.comp_info.swap(1, 2);
+        }
+        true
+    } else {
+        false
     }
 }
 
