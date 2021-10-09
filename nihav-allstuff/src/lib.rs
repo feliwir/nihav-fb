@@ -23,6 +23,7 @@ use nihav_commonfmt::generic_register_all_encoders;
 use nihav_commonfmt::generic_register_all_muxers;
 
 use nihav_duck::duck_register_all_decoders;
+use nihav_duck::duck_register_all_demuxers;
 use nihav_duck::duck_register_all_encoders;
 
 use nihav_game::game_register_all_decoders;
@@ -66,6 +67,7 @@ pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
 
 /// Registers all known demuxers.
 pub fn nihav_register_all_demuxers(rd: &mut RegisteredDemuxers) {
+    duck_register_all_demuxers(rd);
     generic_register_all_demuxers(rd);
     game_register_all_demuxers(rd);
     llaudio_register_all_demuxers(rd);

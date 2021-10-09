@@ -15,7 +15,7 @@ features = ["fft", "dsp_window", "blockdsp"]
 nihav_commonfmt = { path = "../nihav-commonfmt", default-features=false, features = ["all_demuxers", "all_muxers"] }
 
 [features]
-default = ["all_decoders", "all_encoders"]
+default = ["all_decoders", "all_encoders", "all_demuxers"]
 
 all_decoders = ["all_video_decoders", "all_audio_decoders"]
 all_video_decoders = ["decoder_truemotion1", "decoder_truemotionrt", "decoder_truemotion2", "decoder_truemotion2x", "decoder_vp3", "decoder_vp4", "decoder_vp5", "decoder_vp6", "decoder_vp7"]
@@ -40,3 +40,8 @@ all_video_encoders = ["encoder_vp6"]
 encoders = []
 
 encoder_vp6 = ["encoders"]
+
+all_demuxers = ["demuxer_ivf"]
+demuxers = []
+
+demuxer_ivf = ["demuxers"]

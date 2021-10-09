@@ -9,8 +9,11 @@ extern crate nihav_codec_support;
 #[allow(clippy::verbose_bit_mask)]
 mod codecs;
 
+mod demuxers;
+
 pub use crate::codecs::duck_register_all_decoders;
 pub use crate::codecs::duck_register_all_encoders;
+pub use crate::demuxers::duck_register_all_demuxers;
 
 #[cfg(test)]
 extern crate nihav_commonfmt;
