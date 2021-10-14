@@ -182,6 +182,12 @@ impl PredCache {
         self.v_pred.update_row();
         self.y2_pred.update_row();
     }
+    pub fn reset_left(&mut self) {
+        self.y_pred_left = [0; 4];
+        self.u_pred_left = [0; 2];
+        self.v_pred_left = [0; 2];
+        self.y2_pred_left = 0;
+    }
 }
 
 pub const Y_MODE_TREE: &[VPTreeDef<PredMode>] = &[

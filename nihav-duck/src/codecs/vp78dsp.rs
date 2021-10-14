@@ -129,6 +129,13 @@ pub trait IntraPred {
             off += stride;
         }
     }
+    fn ipred_const(dst: &mut [u8], off: usize, stride: usize, dc: u8) {
+        for row in dst[off..].chunks_mut(stride).take(Self::SIZE) {
+            for el in row[..Self::SIZE].iter_mut() {
+                *el = dc;
+            }
+        }
+    }
 }
 
 pub struct IPred16x16 {}

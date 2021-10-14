@@ -43,7 +43,7 @@ mod vp6;
 #[allow(clippy::needless_range_loop)]
 #[allow(clippy::useless_let_if_seq)]
 mod vp7;
-#[cfg(feature="decoder_vp7")]
+#[cfg(any(feature="decoder_vp7", feature="decoder_vp8"))]
 mod vp78data;
 #[cfg(feature="decoder_vp7")]
 #[allow(clippy::erasing_op)]
@@ -51,16 +51,25 @@ mod vp78data;
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::useless_let_if_seq)]
 mod vp7dsp;
-#[cfg(feature="decoder_vp7")]
+#[cfg(any(feature="decoder_vp7", feature="decoder_vp8"))]
 #[allow(clippy::needless_range_loop)]
 #[allow(clippy::useless_let_if_seq)]
 mod vp78;
-#[cfg(feature="decoder_vp7")]
+#[cfg(any(feature="decoder_vp7", feature="decoder_vp8"))]
 #[allow(clippy::erasing_op)]
 #[allow(clippy::needless_range_loop)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::useless_let_if_seq)]
 mod vp78dsp;
+#[cfg(feature="decoder_vp8")]
+#[allow(clippy::needless_range_loop)]
+#[allow(clippy::useless_let_if_seq)]
+mod vp8;
+#[cfg(feature="decoder_vp8")]
+#[allow(clippy::erasing_op)]
+#[allow(clippy::needless_range_loop)]
+#[allow(clippy::too_many_arguments)]
+mod vp8dsp;
 
 #[cfg(any(feature="decoder_dk3_adpcm", feature="decoder_dk4_adpcm"))]
 mod dkadpcm;
@@ -93,6 +102,8 @@ const DUCK_CODECS: &[DecoderInfo] = &[
     DecoderInfo { name: "vp6a", get_decoder: vp6::get_decoder_vp6_alpha },
 #[cfg(feature="decoder_vp7")]
     DecoderInfo { name: "vp7", get_decoder: vp7::get_decoder },
+#[cfg(feature="decoder_vp8")]
+    DecoderInfo { name: "vp8", get_decoder: vp8::get_decoder },
 
 #[cfg(feature="decoder_dk3_adpcm")]
     DecoderInfo { name: "adpcm-dk3", get_decoder: dkadpcm::get_decoder_dk3 },
