@@ -44,13 +44,23 @@ mod vp6;
 #[allow(clippy::useless_let_if_seq)]
 mod vp7;
 #[cfg(feature="decoder_vp7")]
-mod vp7data;
+mod vp78data;
 #[cfg(feature="decoder_vp7")]
 #[allow(clippy::erasing_op)]
 #[allow(clippy::needless_range_loop)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::useless_let_if_seq)]
 mod vp7dsp;
+#[cfg(feature="decoder_vp7")]
+#[allow(clippy::needless_range_loop)]
+#[allow(clippy::useless_let_if_seq)]
+mod vp78;
+#[cfg(feature="decoder_vp7")]
+#[allow(clippy::erasing_op)]
+#[allow(clippy::needless_range_loop)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::useless_let_if_seq)]
+mod vp78dsp;
 
 #[cfg(any(feature="decoder_dk3_adpcm", feature="decoder_dk4_adpcm"))]
 mod dkadpcm;

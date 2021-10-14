@@ -1,82 +1,11 @@
 use nihav_core::codecs::*;
 use nihav_core::io::byteio::*;
 use nihav_codec_support::codecs::{MV, ZERO_MV};
-use nihav_codec_support::data::GenericCache;
 use super::vpcommon::*;
-use super::vp7data::*;
+use super::vp78::*;
+use super::vp78data::*;
+use super::vp78dsp::*;
 use super::vp7dsp::*;
-
-enum VPTreeDef<T: Copy> {
-    Index(u8),
-    Value(T),
-}
-
-trait VPTreeReader {
-    fn read_tree<T:Copy>(&mut self, tree_def: &[VPTreeDef<T>], tree_prob: &[u8]) -> T;
-}
-
-impl<'a> VPTreeReader for BoolCoder<'a> {
-    fn read_tree<T:Copy>(&mut self, tree_def: &[VPTreeDef<T>], tree_prob: &[u8]) -> T {
-        let mut idx = 0;
-
-        loop {
-            let bit = self.read_prob(tree_prob[idx >> 1]);
-            match tree_def[idx + (bit as usize)] {
-                VPTreeDef::Value(v) => return v,
-                VPTreeDef::Index(ix) => { idx = ix as usize; },
-            };
-        }
-    }
-}
-
-#[repr(u8)]
-#[derive(Clone,Copy,PartialEq,Debug)]
-enum PredMode {
-    DCPred,
-    HPred,
-    VPred,
-    TMPred,
-    BPred,
-
-    //sub-block prediction modes
-    LDPred,
-    RDPred,
-    VRPred,
-    VLPred,
-    HDPred,
-    HUPred,
-
-    Inter,
-}
-
-impl Default for PredMode {
-    fn default() -> Self { PredMode::DCPred }
-}
-
-impl PredMode {
-    fn to_b_mode(self) -> Self {
-        if self == PredMode::DCPred {
-            self
-        } else {
-            PredMode::TMPred
-        }
-    }
-    fn to_b_index(self) -> usize {
-        match self {
-            PredMode::DCPred    => 0,
-            PredMode::TMPred    => 1,
-            PredMode::VPred     => 2,
-            PredMode::HPred     => 3,
-            PredMode::LDPred    => 4,
-            PredMode::RDPred    => 5,
-            PredMode::VRPred    => 6,
-            PredMode::VLPred    => 7,
-            PredMode::HDPred    => 8,
-            PredMode::HUPred    => 9,
-            _ => unreachable!(),
-        }
-    }
-}
 
 const PITCH_MODE_NORMAL: u8 = 0;
 const PITCH_MODE_FOUR:   u8 = 1;
@@ -88,53 +17,6 @@ struct MBFeature {
     present_prob:   u8,
     tree_probs:     [u8; 3],
     def_val:        [u8; 4],
-}
-
-#[derive(Clone,Copy,PartialEq)]
-enum DCTToken {
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Cat1,
-    Cat2,
-    Cat3,
-    Cat4,
-    Cat5,
-    Cat6,
-    EOB,
-}
-
-fn expand_token(bc: &mut BoolCoder, token: DCTToken) -> i16 {
-    let cat;
-    match token {
-        DCTToken::Zero  => return 0,
-        DCTToken::One   => return if bc.read_bool() { -1 } else { 1 },
-        DCTToken::Two   => return if bc.read_bool() { -2 } else { 2 },
-        DCTToken::Three => return if bc.read_bool() { -3 } else { 3 },
-        DCTToken::Four  => return if bc.read_bool() { -4 } else { 4 },
-        DCTToken::Cat1  => cat = 0,
-        DCTToken::Cat2  => cat = 1,
-        DCTToken::Cat3  => cat = 2,
-        DCTToken::Cat4  => cat = 3,
-        DCTToken::Cat5  => cat = 4,
-        DCTToken::Cat6  => cat = 5,
-        _ => unreachable!(),
-    };
-    let mut add = 0i16;
-    let add_probs = &VP56_COEF_ADD_PROBS[cat];
-    for prob in add_probs.iter() {
-        if *prob == 128 { break; }
-        add                                 = (add << 1) | (bc.read_prob(*prob) as i16);
-    }
-    let sign                                = bc.read_bool();
-    let level = VP56_COEF_BASE[cat] + add;
-    if !sign {
-        level
-    } else {
-        -level
-    }
 }
 
 struct SBParams<'a> {
@@ -218,22 +100,6 @@ impl DecoderState {
     }
 }
 
-#[derive(Clone,Copy,Debug,PartialEq)]
-enum MVSplitMode {
-    TopBottom,
-    LeftRight,
-    Quarters,
-    Sixteenths,
-}
-
-#[derive(Clone,Copy,Debug,PartialEq)]
-enum SubMVRef {
-    Left,
-    Above,
-    New,
-    Zero,
-}
-
 fn decode_mv_component(bc: &mut BoolCoder, probs: &[u8; 17]) -> i16 {
     const LONG_VECTOR_ORDER: [usize; 7] = [ 0, 1, 2, 7, 6, 5, 4 ];
 
@@ -256,54 +122,6 @@ fn decode_mv_component(bc: &mut BoolCoder, probs: &[u8; 17]) -> i16 {
         val
     } else {
         -val
-    }
-}
-
-struct PredCache {
-    y_pred:         GenericCache<u8>,
-    u_pred:         GenericCache<u8>,
-    v_pred:         GenericCache<u8>,
-    y2_pred:        GenericCache<u8>,
-    y_pred_left:    [u8; 4],
-    u_pred_left:    [u8; 2],
-    v_pred_left:    [u8; 2],
-    y2_pred_left:   u8,
-}
-
-impl PredCache {
-    fn new() -> Self {
-        Self {
-            y_pred:         GenericCache::new(1, 1, 0),
-            u_pred:         GenericCache::new(1, 1, 0),
-            v_pred:         GenericCache::new(1, 1, 0),
-            y2_pred:        GenericCache::new(1, 1, 0),
-            y_pred_left:    [0; 4],
-            u_pred_left:    [0; 2],
-            v_pred_left:    [0; 2],
-            y2_pred_left:   0,
-        }
-    }
-    fn resize(&mut self, mb_w: usize) {
-        self.y_pred     = GenericCache::new(4, mb_w * 4 + 1, 0);
-        self.u_pred     = GenericCache::new(2, mb_w * 2 + 1, 0);
-        self.v_pred     = GenericCache::new(2, mb_w * 2 + 1, 0);
-        self.y2_pred    = GenericCache::new(1, mb_w     + 1, 0);
-    }
-    fn reset(&mut self) {
-        self.y_pred.reset();
-        self.u_pred.reset();
-        self.v_pred.reset();
-        self.y2_pred.reset();
-        self.y_pred_left = [0; 4];
-        self.u_pred_left = [0; 2];
-        self.v_pred_left = [0; 2];
-        self.y2_pred_left = 0;
-    }
-    fn update_row(&mut self) {
-        self.y_pred.update_row();
-        self.u_pred.update_row();
-        self.v_pred.update_row();
-        self.y2_pred.update_row();
     }
 }
 
@@ -1467,90 +1285,74 @@ mod test {
     }
 }
 
-/*const DEFAULT_ZIGZAG: [usize; 16] = [
-    0,  1,  5,  6,
-    2,  4,  7, 12,
-    3,  8, 11, 13,
-    9, 10, 14, 15
-];*/
-const DEFAULT_SCAN_ORDER: [usize; 16] = [
-    0,  1,  4,  8,
-    5,  2,  3,  6,
-    9, 12, 13, 10,
-    7, 11, 14, 15
+const MV_UPDATE_PROBS: [[u8; 17]; 2] = [
+    [ 237, 246, 253, 253, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 250, 250, 252 ],
+    [ 231, 243, 245, 253, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 251, 251, 254 ]
+];
+const DEFAULT_MV_PROBS: [[u8; 17]; 2] = [
+    [ 162, 128, 225, 146, 172, 147, 214,  39, 156, 247, 210, 135,  68, 138, 220, 239, 246 ],
+    [ 164, 128, 204, 170, 119, 235, 140, 230, 228, 244, 184, 201,  44, 173, 221, 239, 253 ]
 ];
 
-const Y_MODE_TREE: &[VPTreeDef<PredMode>] = &[
-    VPTreeDef::Value(PredMode::DCPred), VPTreeDef::Index(2),
-    VPTreeDef::Index(4),                VPTreeDef::Index(6),
-    VPTreeDef::Value(PredMode::VPred),  VPTreeDef::Value(PredMode::HPred),
-    VPTreeDef::Value(PredMode::TMPred), VPTreeDef::Value(PredMode::BPred),
-];
-const KF_Y_MODE_TREE: &[VPTreeDef<PredMode>] = &[
-    VPTreeDef::Value(PredMode::BPred),  VPTreeDef::Index(2),
-    VPTreeDef::Index(4),                VPTreeDef::Index(6),
-    VPTreeDef::Value(PredMode::DCPred), VPTreeDef::Value(PredMode::VPred),
-    VPTreeDef::Value(PredMode::HPred),  VPTreeDef::Value(PredMode::TMPred),
-];
-const UV_MODE_TREE: &[VPTreeDef<PredMode>] = &[
-    VPTreeDef::Value(PredMode::DCPred), VPTreeDef::Index(2),
-    VPTreeDef::Value(PredMode::VPred),  VPTreeDef::Index(4),
-    VPTreeDef::Value(PredMode::HPred),  VPTreeDef::Value(PredMode::TMPred)
-];
-const B_MODE_TREE: &[VPTreeDef<PredMode>] = &[
-    VPTreeDef::Value(PredMode::DCPred), VPTreeDef::Index(2),
-    VPTreeDef::Value(PredMode::TMPred), VPTreeDef::Index(4),
-    VPTreeDef::Value(PredMode::VPred),  VPTreeDef::Index(6),
-    VPTreeDef::Index(8),                VPTreeDef::Index(12),
-    VPTreeDef::Value(PredMode::HPred),  VPTreeDef::Index(10),
-    VPTreeDef::Value(PredMode::RDPred), VPTreeDef::Value(PredMode::VRPred),
-    VPTreeDef::Value(PredMode::LDPred), VPTreeDef::Index(14),
-    VPTreeDef::Value(PredMode::VLPred), VPTreeDef::Index(16),
-    VPTreeDef::Value(PredMode::HDPred), VPTreeDef::Value(PredMode::HUPred)
-];
+const SUB_MV_REF_PROBS: [u8; 3] = [ 180, 162, 25 ];
 
-const FEATURE_TREE: &[VPTreeDef<usize>] = &[
-    VPTreeDef::Index(2), VPTreeDef::Index(4),
-    VPTreeDef::Value(0), VPTreeDef::Value(1),
-    VPTreeDef::Value(2), VPTreeDef::Value(3)
+const Y_DC_QUANTS: [i16; 128] = [
+      4,   4,   5,   6,   6,   7,   8,   8,   9,  10,  11,  12,  13,  14,  15,  16,
+     17,  18,  19,  20,  21,  22,  23,  23,  24,  25,  26,  27,  28,  29,  30,  31,
+     32,  33,  33,  34,  35,  36,  36,  37,  38,  39,  39,  40,  41,  41,  42,  43,
+     43,  44,  45,  45,  46,  47,  48,  48,  49,  50,  51,  52,  53,  53,  54,  56,
+     57,  58,  59,  60,  62,  63,  65,  66,  68,  70,  72,  74,  76,  79,  81,  84,
+     87,  90,  93,  96, 100, 104, 108, 112, 116, 121, 126, 131, 136, 142, 148, 154,
+    160, 167, 174, 182, 189, 198, 206, 215, 224, 234, 244, 254, 265, 277, 288, 301,
+    313, 327, 340, 355, 370, 385, 401, 417, 434, 452, 470, 489, 509, 529, 550, 572
 ];
-
-const COEF_TREE: &[VPTreeDef<DCTToken>] = &[
-    VPTreeDef::Value(DCTToken::EOB),    VPTreeDef::Index(2),
-    VPTreeDef::Value(DCTToken::Zero),   VPTreeDef::Index(4),
-    VPTreeDef::Value(DCTToken::One),    VPTreeDef::Index(6),
-    VPTreeDef::Index(8),                VPTreeDef::Index(12),
-    VPTreeDef::Value(DCTToken::Two),    VPTreeDef::Index(10),
-    VPTreeDef::Value(DCTToken::Three),  VPTreeDef::Value(DCTToken::Four),
-    VPTreeDef::Index(14),               VPTreeDef::Index(16),
-    VPTreeDef::Value(DCTToken::Cat1),   VPTreeDef::Value(DCTToken::Cat2),
-    VPTreeDef::Index(18),               VPTreeDef::Index(20),
-    VPTreeDef::Value(DCTToken::Cat3),   VPTreeDef::Value(DCTToken::Cat4),
-    VPTreeDef::Value(DCTToken::Cat5),   VPTreeDef::Value(DCTToken::Cat6)
+const Y_AC_QUANTS: [i16; 128] = [
+      4,   4,   5,   5,   6,   6,   7,   8,   9,  10,  11,  12,   13,   15,   16,   17,
+     19,  20,  22,  23,  25,  26,  28,  29,  31,  32,  34,  35,   37,   38,   40,   41,
+     42,  44,  45,  46,  48,  49,  50,  51,  53,  54,  55,  56,   57,   58,   59,   61,
+     62,  63,  64,  65,  67,  68,  69,  70,  72,  73,  75,  76,   78,   80,   82,   84,
+     86,  88,  91,  93,  96,  99, 102, 105, 109, 112, 116, 121,  125,  130,  135,  140,
+    146, 152, 158, 165, 172, 180, 188, 196, 205, 214, 224, 234,  245,  256,  268,  281,
+    294, 308, 322, 337, 353, 369, 386, 404, 423, 443, 463, 484,  506,  529,  553,  578,
+    604, 631, 659, 688, 718, 749, 781, 814, 849, 885, 922, 960, 1000, 1041, 1083, 1127
 ];
-
-const MV_REF_TREE: &[VPTreeDef<VPMBType>] = &[
-    VPTreeDef::Value(VPMBType::InterNoMV),      VPTreeDef::Index(2),
-    VPTreeDef::Value(VPMBType::InterNearest),   VPTreeDef::Index(4),
-    VPTreeDef::Value(VPMBType::InterNear),      VPTreeDef::Index(6),
-    VPTreeDef::Value(VPMBType::InterMV),        VPTreeDef::Value(VPMBType::InterFourMV)
+const Y2_DC_QUANTS: [i16; 128] = [
+      7,   9,  11,  13,  15,  17,  19,  21,  23,  26,  28,  30,   33,   35,   37,   39,
+     42,  44,  46,  48,  51,  53,  55,  57,  59,  61,  63,  65,   67,   69,   70,   72,
+     74,  75,  77,  78,  80,  81,  83,  84,  85,  87,  88,  89,   90,   92,   93,   94,
+     95,  96,  97,  99, 100, 101, 102, 104, 105, 106, 108, 109,  111,  113,  114,  116,
+    118, 120, 123, 125, 128, 131, 134, 137, 140, 144, 148, 152,  156,  161,  166,  171,
+    176, 182, 188, 195, 202, 209, 217, 225, 234, 243, 253, 263,  274,  285,  297,  309,
+    322, 336, 350, 365, 381, 397, 414, 432, 450, 470, 490, 511,  533,  556,  579,  604,
+    630, 656, 684, 713, 742, 773, 805, 838, 873, 908, 945, 983, 1022, 1063, 1105, 1148
 ];
-const SMALL_MV_TREE: &[VPTreeDef<i16>] = &[
-    VPTreeDef::Index(2),    VPTreeDef::Index(8),
-    VPTreeDef::Index(4),    VPTreeDef::Index(6),
-    VPTreeDef::Value(0),    VPTreeDef::Value(1),
-    VPTreeDef::Value(2),    VPTreeDef::Value(3),
-    VPTreeDef::Index(10),   VPTreeDef::Index(12),
-    VPTreeDef::Value(4),    VPTreeDef::Value(5),
-    VPTreeDef::Value(6),    VPTreeDef::Value(7)
+const Y2_AC_QUANTS: [i16; 128] = [
+      7,   9,   11,   13,   16,   18,   21,   24,   26,   29,   32,   35,   38,   41,   43,   46,
+     49,  52,   55,   58,   61,   64,   66,   69,   72,   74,   77,   79,   82,   84,   86,   88,
+     91,  93,   95,   97,   98,  100,  102,  104,  105,  107,  109,  110,  112,  113,  115,  116,
+    117, 119,  120,  122,  123,  125,  127,  128,  130,  132,  134,  136,  138,  141,  143,  146,
+    149, 152,  155,  158,  162,  166,  171,  175,  180,  185,  191,  197,  204,  210,  218,  226,
+    234, 243,  252,  262,  273,  284,  295,  308,  321,  335,  350,  365,  381,  398,  416,  435,
+    455, 476,  497,  520,  544,  569,  595,  622,  650,  680,  711,  743,  776,  811,  848,  885,
+    925, 965, 1008, 1052, 1097, 1144, 1193, 1244, 1297, 1351, 1407, 1466, 1526, 1588, 1652, 1719
 ];
-const MV_SPLIT_MODE_TREE: &[VPTreeDef<MVSplitMode>] = &[
-    VPTreeDef::Value(MVSplitMode::Sixteenths),  VPTreeDef::Index(2),
-    VPTreeDef::Value(MVSplitMode::Quarters),    VPTreeDef::Index(4),
-    VPTreeDef::Value(MVSplitMode::TopBottom),   VPTreeDef::Value(MVSplitMode::LeftRight)
+const UV_DC_QUANTS: [i16; 128] = [
+      4,   4,   5,   6,   6,   7,   8,   8,   9,  10,  11,  12,  13,  14,  15,  16,
+     17,  18,  19,  20,  21,  22,  23,  23,  24,  25,  26,  27,  28,  29,  30,  31,
+     32,  33,  33,  34,  35,  36,  36,  37,  38,  39,  39,  40,  41,  41,  42,  43,
+     43,  44,  45,  45,  46,  47,  48,  48,  49,  50,  51,  52,  53,  53,  54,  56,
+     57,  58,  59,  60,  62,  63,  65,  66,  68,  70,  72,  74,  76,  79,  81,  84,
+     87,  90,  93,  96, 100, 104, 108, 112, 116, 121, 126, 131, 132, 132, 132, 132,
+    132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132,
+    132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132
 ];
-const SUB_MV_REF_TREE: &[VPTreeDef<SubMVRef>] = &[
-    VPTreeDef::Value(SubMVRef::Left),   VPTreeDef::Index(2),
-    VPTreeDef::Value(SubMVRef::Above),  VPTreeDef::Index(4),
-    VPTreeDef::Value(SubMVRef::Zero),   VPTreeDef::Value(SubMVRef::New)
+const UV_AC_QUANTS: [i16; 128] = [
+      4,   4,   5,   5,   6,   6,   7,   8,   9,  10,  11,  12,   13,   15,   16,   17,
+     19,  20,  22,  23,  25,  26,  28,  29,  31,  32,  34,  35,   37,   38,   40,   41,
+     42,  44,  45,  46,  48,  49,  50,  51,  53,  54,  55,  56,   57,   58,   59,   61,
+     62,  63,  64,  65,  67,  68,  69,  70,  72,  73,  75,  76,   78,   80,   82,   84,
+     86,  88,  91,  93,  96,  99, 102, 105, 109, 112, 116, 121,  125,  130,  135,  140,
+    146, 152, 158, 165, 172, 180, 188, 196, 205, 214, 224, 234,  245,  256,  268,  281,
+    294, 308, 322, 337, 353, 369, 386, 404, 423, 443, 463, 484,  506,  529,  553,  578,
+    604, 631, 659, 688, 718, 749, 781, 814, 849, 885, 922, 960, 1000, 1041, 1083, 1127
 ];
