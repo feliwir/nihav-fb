@@ -371,7 +371,7 @@ mod test {
         let enc_options = &[
                 NAOption{name: "trellis", value: NAValue::Bool(trellis)},
             ];
-        test_encoding_to_file(&dec_config, &enc_config, enc_params, enc_options);
+//        test_encoding_to_file(&dec_config, &enc_config, enc_params, enc_options);
 
         test_encoding_md5(&dec_config, &enc_config, enc_params, enc_options,
                           hash);
