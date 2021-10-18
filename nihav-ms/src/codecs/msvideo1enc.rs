@@ -73,7 +73,7 @@ impl VQElement for Pixel16 {
         let rd = u32::from(r0) - u32::from(r1);
         let gd = u32::from(g0) - u32::from(g1);
         let bd = u32::from(b0) - u32::from(b1);
-        if rd > gd && rd > bd {
+        if rd > gd && rd >= bd {
             0
         } else if bd > rd && bd > gd {
             2
@@ -612,6 +612,6 @@ mod test {
             };
         //test_encoding_to_file(&dec_config, &enc_config, enc_params, &[]);
         test_encoding_md5(&dec_config, &enc_config, enc_params, &[],
-                          &[0x4339421d, 0x6393f1b6, 0x653d6cd2, 0x3a184382]);
+                          &[0x6921e67e, 0x4f2ada95, 0x009ffc62, 0xd4bfab6a]);
     }
 }
