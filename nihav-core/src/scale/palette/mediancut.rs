@@ -78,7 +78,7 @@ impl<'a> VQBox<'a> {
 
         let box0;
         let box1;
-        if (dr > dg) && (dr > db) {
+        if (dr > dg) && (dr >= db) {
             let pivot = Self::sort(self.pixels, |pix| pix.r as usize);
             let (part0, part1) = self.pixels.split_at_mut(pivot);
             let (min0, max0) = Self::calc_min_and_max(part0);
