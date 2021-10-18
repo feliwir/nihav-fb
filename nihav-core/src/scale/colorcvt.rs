@@ -17,6 +17,33 @@ const YUV_PARAMS: &[[f32; 2]] = &[
     [ 0.2627,   0.0593  ], // ITU-R BT2020
 ];
 
+fn parse_yuv_mat(name: &str) -> usize {
+    match name {
+        "rgb"       => 0,
+        "bt709"     => 1,
+        "bt601"     => 4,
+        "bt470"     => 5,
+        "smpte170m" => 6,
+        "smpte240m" => 7,
+        "ycocg"     => 8,
+        "bt2020"    => 9,
+        _ => 2,
+    }
+}
+
+/*fn get_yuv_mat(id: usize) -> &'static str {
+    match id {
+        1 => "bt709",
+        4 => "bt601",
+        5 => "bt470",
+        6 => "smpte170m",
+        7 => "smpte240m",
+        8 => "ycocg",
+        9 => "bt2020",
+        _ => "rgb",
+    }
+}*/
+
 const BT_PAL_COEFFS: [f32; 2] = [ 0.493, 0.877 ];
 
 const SMPTE_NTSC_COEFFS: &[f32; 4] = &[ -0.268, 0.7358, 0.4127, 0.4778 ];
@@ -163,6 +190,7 @@ fn matrix_mul(mat: &[[f32; 3]; 3], a: f32, b: f32, c: f32) -> (f32, f32, f32) {
 #[derive(Default)]
 struct RgbToYuv {
     matrix: [[f32; 3]; 3],
+    mode:   usize,
 }
 
 impl RgbToYuv {
@@ -171,10 +199,23 @@ impl RgbToYuv {
 
 #[allow(clippy::many_single_char_names)]
 impl Kernel for RgbToYuv {
-    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo, options: &[(String, String)]) -> ScaleResult<NABufferType> {
+        let mut debug = false;
+        let mut mode = DEFAULT_YUV;
+        for (name, value) in options.iter() {
+            match (name.as_str(), value.as_str()) {
+                ("debug", "")     => { debug = true; },
+                ("debug", "true") => { debug = true; },
+                ("rgb2yuv.mode", ymode) => {
+                    mode = parse_yuv_mat(ymode);
+                },
+                _ => {},
+            }
+        }
+        self.mode = mode;
+
         let mut df = dest_fmt.fmt;
-//todo coeff selection
-        make_rgb2yuv(YUV_PARAMS[DEFAULT_YUV][0], YUV_PARAMS[DEFAULT_YUV][1], &mut self.matrix);
+        make_rgb2yuv(YUV_PARAMS[mode][0], YUV_PARAMS[mode][1], &mut self.matrix);
         if let ColorModel::YUV(yuvsm) = df.get_model() {
             match yuvsm {
             YUVSubmodel::YCbCr  => {},
@@ -192,7 +233,9 @@ impl Kernel for RgbToYuv {
                 chr.v_ss = 0;
             }
         }
-println!(" [intermediate format {}]", df);
+        if debug {
+            println!(" [intermediate format {}]", df);
+        }
         let res = alloc_video_buffer(NAVideoInfo::new(in_fmt.width, in_fmt.height, false, df), 3);
         if res.is_err() { return Err(ScaleError::AllocError); }
         Ok(res.unwrap())
@@ -272,6 +315,7 @@ pub fn create_rgb2yuv() -> Box<dyn Kernel> {
 #[derive(Default)]
 struct YuvToRgb {
     matrix: [[f32; 3]; 3],
+    mode:   usize,
     yscale: Vec<i16>,
     r_chr:  Vec<i16>,
     g_u:    Vec<i16>,
@@ -285,7 +329,21 @@ impl YuvToRgb {
 
 #[allow(clippy::many_single_char_names)]
 impl Kernel for YuvToRgb {
-    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo, options: &[(String, String)]) -> ScaleResult<NABufferType> {
+        let mut debug = false;
+        let mut mode = DEFAULT_YUV;
+        for (name, value) in options.iter() {
+            match (name.as_str(), value.as_str()) {
+                ("debug", "")     => { debug = true; },
+                ("debug", "true") => { debug = true; },
+                ("yuv2rgb.mode", ymode) => {
+                    mode = parse_yuv_mat(ymode);
+                },
+                _ => {},
+            }
+        }
+        self.mode = mode;
+
         let mut df = dest_fmt.fmt;
         df.palette = false;
         if !df.is_unpacked() || df.get_max_depth() != 8 || df.get_total_depth() != df.get_num_comp() as u8 * 8 {
@@ -303,8 +361,7 @@ impl Kernel for YuvToRgb {
                 df.comp_info[3] = Some(NAPixelChromaton{ h_ss: 0, v_ss: 0, packed: false, depth: 8, shift: 0, comp_offs: 3, next_elem: 1 });
             }
         }
-//todo coeff selection
-        make_yuv2rgb(YUV_PARAMS[DEFAULT_YUV][0], YUV_PARAMS[DEFAULT_YUV][1], &mut self.matrix);
+        make_yuv2rgb(YUV_PARAMS[mode][0], YUV_PARAMS[mode][1], &mut self.matrix);
         if let ColorModel::YUV(yuvsm) = in_fmt.fmt.get_model() {
             match yuvsm {
                 YUVSubmodel::YCbCr  => {},
@@ -345,7 +402,9 @@ impl Kernel for YuvToRgb {
                 chr.comp_offs = i as u8;
             }
         }
-println!(" [intermediate format {}]", df);
+        if debug {
+            println!(" [intermediate format {}]", df);
+        }
         let res = alloc_video_buffer(NAVideoInfo::new(in_fmt.width, in_fmt.height, false, df), 3);
         if res.is_err() { return Err(ScaleError::AllocError); }
         Ok(res.unwrap())

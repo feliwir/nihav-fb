@@ -100,7 +100,7 @@ macro_rules! scale_loop {
 }
 
 impl Kernel for NNResampler {
-    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo, _options: &[(String, String)]) -> ScaleResult<NABufferType> {
         let res = alloc_video_buffer(NAVideoInfo::new(dest_fmt.width, dest_fmt.height, false, in_fmt.fmt), 3);
         if res.is_err() { return Err(ScaleError::AllocError); }
         Ok(res.unwrap())

@@ -33,7 +33,7 @@ impl PackKernel {
 }
 
 impl Kernel for PackKernel {
-    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo, _options: &[(String, String)]) -> ScaleResult<NABufferType> {
         self.ncomps = in_fmt.fmt.components.min(dest_fmt.fmt.components) as usize;
         for i in 0..self.ncomps {
             let ichr = in_fmt.fmt.comp_info[i].unwrap();
@@ -120,7 +120,16 @@ impl UnpackKernel {
 }
 
 impl Kernel for UnpackKernel {
-    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, dest_fmt: &ScaleInfo, options: &[(String, String)]) -> ScaleResult<NABufferType> {
+        let mut debug = false;
+        for (name, value) in options.iter() {
+            match (name.as_str(), value.as_str()) {
+                ("debug", "")     => { debug = true; },
+                ("debug", "true") => { debug = true; },
+                _ => {},
+            }
+        }
+
         self.ncomps = in_fmt.fmt.components.min(dest_fmt.fmt.components) as usize;
         let mut chr: Vec<Option<NAPixelChromaton>> = Vec::with_capacity(MAX_CHROMATONS);
         for i in 0..self.ncomps {
@@ -146,7 +155,9 @@ impl Kernel for UnpackKernel {
         df.comp_info[..self.ncomps].clone_from_slice(&chr[..self.ncomps]);
         df.components = self.ncomps as u8;
         df.palette = false;
-println!(" [intermediate format {}]", df);
+        if debug {
+            println!(" [intermediate format {}]", df);
+        }
         let res = alloc_video_buffer(NAVideoInfo::new(in_fmt.width, in_fmt.height, false, df), 3);
         if res.is_err() { return Err(ScaleError::AllocError); }
         Ok(res.unwrap())
@@ -256,7 +267,16 @@ impl DepalKernel {
 }
 
 impl Kernel for DepalKernel {
-    fn init(&mut self, in_fmt: &ScaleInfo, _dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, _dest_fmt: &ScaleInfo, options: &[(String, String)]) -> ScaleResult<NABufferType> {
+        let mut debug = false;
+        for (name, value) in options.iter() {
+            match (name.as_str(), value.as_str()) {
+                ("debug", "")     => { debug = true; },
+                ("debug", "true") => { debug = true; },
+                _ => {},
+            }
+        }
+
 //todo select output more fitting for dest_fmt if possible
         self.ncomps = in_fmt.fmt.components as usize;
         let mut chr: Vec<Option<NAPixelChromaton>> = Vec::with_capacity(MAX_CHROMATONS);
@@ -276,7 +296,9 @@ impl Kernel for DepalKernel {
         let mut df = in_fmt.fmt;
         df.palette = false;
         df.comp_info[..self.ncomps].clone_from_slice(&chr[..self.ncomps]);
-println!(" [intermediate format {}]", df);
+        if debug {
+            println!(" [intermediate format {}]", df);
+        }
         let res = alloc_video_buffer(NAVideoInfo::new(in_fmt.width, in_fmt.height, false, df), 3);
         if res.is_err() { return Err(ScaleError::AllocError); }
         Ok(res.unwrap())

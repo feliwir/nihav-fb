@@ -220,7 +220,29 @@ impl PalettiseKernel {
 }
 
 impl Kernel for PalettiseKernel {
-    fn init(&mut self, in_fmt: &ScaleInfo, _dest_fmt: &ScaleInfo) -> ScaleResult<NABufferType> {
+    fn init(&mut self, in_fmt: &ScaleInfo, _dest_fmt: &ScaleInfo, options: &[(String, String)]) -> ScaleResult<NABufferType> {
+        for (name, value) in options.iter() {
+            match name.as_str() {
+                "pal.quant" => {
+                    self.qmode = match value.as_str() {
+                            "mediancut" => QuantisationMode::MedianCut,
+                            "elbg"      => QuantisationMode::ELBG,
+                            "neuquant"  => QuantisationMode::NeuQuant(3),
+                            _           => QuantisationMode::default(),
+                        };
+                },
+                "pal.search" => {
+                    self.palmode = match value.as_str() {
+                            "full"      => PaletteSearchMode::Full,
+                            "local"     => PaletteSearchMode::Local,
+                            "kdtree"    => PaletteSearchMode::KDTree,
+                            _           => PaletteSearchMode::default(),
+                        };
+                },
+                _ => {},
+            };
+        }
+
         self.pixels = Vec::with_capacity(in_fmt.width * in_fmt.height);
         let res = alloc_video_buffer(NAVideoInfo::new(in_fmt.width, in_fmt.height, false, PAL8_FORMAT), 0);
         if res.is_err() { return Err(ScaleError::AllocError); }
