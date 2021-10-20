@@ -92,6 +92,14 @@ pub struct FileReader<T: Read+Seek> {
     eof:      bool,
 }
 
+/// Bytestream reader from anything implementing `std::io::Read` and `std::io::Seek` that operates only on a part of the input.
+pub struct BoundedFileReader<T: Read+Seek> {
+    file:     Box<T>,
+    start:    u64,
+    end:      Option<u64>,
+    eof:      bool,
+}
+
 macro_rules! read_int {
     ($s: ident, $inttype: ty, $size: expr, $which: ident) => ({
         unsafe {
@@ -632,6 +640,177 @@ impl<T: Read+Seek> ByteIO for FileReader<T> {
 
     fn flush(&mut self) -> ByteIOResult<()> { Ok(()) }
 }
+
+
+impl<T: Read+Seek> BoundedFileReader<T> {
+
+    /// Constructs a new instance of `BoundedFileReader`. The reader pretends that data before `start` and after `end` (if set) does not exist.
+    pub fn new_read(file: T, start: u64, end: Option<u64>) -> ByteIOResult<Self> {
+        let mut file = Box::new(file);
+        if let Some(epos) = end {
+            if start > epos {
+                return Err(ByteIOError::WrongRange);
+            }
+        }
+        if start > 0 && file.seek(SeekFrom::Start(start)).is_err() {
+            return Err(ByteIOError::SeekError);
+        }
+        Ok(Self { file, start, end, eof : false })
+    }
+    /// Constructs a new instance of `BoundedFileReader` using a boxed resource. The reader pretends that data before `start` and after `end` (if set) does not exist.
+    pub fn new_read_boxed(mut file: Box<T>, start: u64, end: Option<u64>) -> ByteIOResult<Self> {
+        if let Some(epos) = end {
+            if start > epos {
+                return Err(ByteIOError::WrongRange);
+            }
+        }
+        if start > 0 && file.seek(SeekFrom::Start(start)).is_err() {
+            return Err(ByteIOError::SeekError);
+        }
+        Ok(Self { file, start, end, eof : false })
+    }
+    /// Destroys the reader and releases the reader resource for a further use.
+    pub fn finish(self) -> Box<T> { self.file }
+    fn real_tell(&mut self) -> u64 {
+        self.file.seek(SeekFrom::Current(0)).unwrap()
+    }
+    fn max_read_len(&mut self, len: usize) -> usize {
+        if let Some(epos) = self.end {
+            (len as u64).min(epos - self.real_tell()) as usize
+        } else {
+            len
+        }
+    }
+}
+
+impl<T: Read+Seek> ByteIO for BoundedFileReader<T> {
+    fn read_byte(&mut self) -> ByteIOResult<u8> {
+        if let Some(epos) = self.end {
+            if self.real_tell() >= epos {
+                self.eof = true;
+                return Err(ByteIOError::EOF);
+            }
+        }
+        let mut byte : [u8; 1] = [0];
+        let ret = self.file.read(&mut byte);
+        if ret.is_err() { return Err(ByteIOError::ReadError); }
+        let sz = ret.unwrap();
+        if sz == 0 { self.eof = true; return Err(ByteIOError::EOF); }
+        Ok (byte[0])
+    }
+
+    fn peek_byte(&mut self) -> ByteIOResult<u8> {
+        let b = self.read_byte()?;
+        if self.file.seek(SeekFrom::Current(-1)).is_err() {
+            return Err(ByteIOError::SeekError);
+        }
+        Ok(b)
+    }
+
+    fn read_buf(&mut self, buf: &mut [u8]) -> ByteIOResult<usize> {
+        let len = self.max_read_len(buf.len());
+        match self.file.read_exact(&mut buf[..len]) {
+            Ok(()) if len == buf.len() => Ok(buf.len()),
+            Ok(()) => {
+                self.eof = true;
+                Err(ByteIOError::EOF)
+            },
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                    self.eof = true;
+                    Err(ByteIOError::EOF)
+                } else {
+                    Err(ByteIOError::ReadError)
+                }
+            },
+        }
+    }
+
+    fn read_buf_some(&mut self, buf: &mut [u8]) -> ByteIOResult<usize> {
+        let len = self.max_read_len(buf.len());
+        let ret = self.file.read(&mut buf[..len]);
+        if ret.is_err() { return Err(ByteIOError::ReadError); }
+        let sz = ret.unwrap();
+        if sz < len {
+            if let Err(_err) = self.file.read(&mut buf[sz..][..1]) {
+                self.eof = true;
+            } else {
+                return Ok(sz + 1);
+            }
+        }
+        Ok(sz)
+    }
+
+    fn peek_buf(&mut self, buf: &mut [u8]) -> ByteIOResult<usize> {
+        let len = self.max_read_len(buf.len());
+        let size = self.read_buf(&mut buf[..len])?;
+        if self.file.seek(SeekFrom::Current(-(size as i64))).is_err() {
+            return Err(ByteIOError::SeekError);
+        }
+        Ok(size)
+    }
+
+    #[allow(unused_variables)]
+    fn write_buf(&mut self, buf: &[u8]) -> ByteIOResult<()> {
+        Err(ByteIOError::NotImplemented)
+    }
+
+    fn tell(&mut self) -> u64 {
+        self.file.seek(SeekFrom::Current(0)).unwrap() - self.start
+    }
+
+    fn seek(&mut self, pos: SeekFrom) -> ByteIOResult<u64> {
+        let res = match pos {
+                SeekFrom::Start(off) => {
+                    let dpos = self.start + off;
+                    if let Some(epos) = self.end {
+                        if dpos > epos {
+                            return Err(ByteIOError::WrongRange);
+                        }
+                    }
+                    self.file.seek(SeekFrom::Start(dpos))
+                },
+                SeekFrom::Current(off) => {
+                    let dpos = (self.real_tell() as i64) + off;
+                    let end = self.end.unwrap_or(dpos as u64);
+                    if dpos < 0 || ((dpos as u64) < self.start) || ((dpos as u64) > end) {
+                        return Err(ByteIOError::WrongRange);
+                    }
+                    self.file.seek(pos)
+                },
+                SeekFrom::End(off) => {
+                    if let Some(epos) = self.end {
+                        let dpos = (epos as i64) + off;
+                        if dpos < (self.start as i64) || ((dpos as u64) > epos) {
+                            return Err(ByteIOError::WrongRange);
+                        }
+                        self.file.seek(SeekFrom::Start(dpos as u64))
+                    } else {
+                        self.file.seek(pos)
+                    }
+                },
+            };
+        match res {
+            Ok(r) => Ok(r),
+            Err(_) => Err(ByteIOError::SeekError),
+        }
+    }
+
+    fn is_eof(&self) -> bool {
+        self.eof
+    }
+
+    fn is_seekable(&mut self) -> bool {
+        true
+    }
+
+    fn size(&mut self) -> i64 {
+        -1
+    }
+
+    fn flush(&mut self) -> ByteIOResult<()> { Ok(()) }
+}
+
 
 /// High-level bytestream writer.
 ///
