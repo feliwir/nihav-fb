@@ -557,6 +557,12 @@ impl<T: Read+Seek> FileReader<T> {
     pub fn new_read(file: T) -> Self {
         FileReader { file: Box::new(file), eof : false }
     }
+    /// Constructs a new instance of `FileReader` using a boxed resource.
+    pub fn new_read_boxed(file: Box<T>) -> Self {
+        FileReader { file, eof : false }
+    }
+    /// Destroys the reader and releases the reader resource for a further use.
+    pub fn finish(self) -> Box<T> { self.file }
 }
 
 impl<T: Read+Seek> ByteIO for FileReader<T> {
