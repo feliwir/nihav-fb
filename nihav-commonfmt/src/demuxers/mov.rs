@@ -689,15 +689,19 @@ fn read_stsd(track: &mut Track, br: &mut ByteReader, size: u64) -> DemuxerResult
             let sver            = br.read_u16be()?;
             let _revision       = br.read_u16le()?;
             let _vendor         = br.read_u32be()?;
-            let nchannels       = br.read_u16be()?;
-            validate!(nchannels <= 64);
+            let mut nchannels   = br.read_u16be()?;
+            if sver != 2 {
+                validate!(nchannels <= 64);
+            }
             let sample_size     = br.read_u16be()?;
             validate!(sample_size <= 128);
             let _compr_id       = br.read_u16be()?;
             let packet_size     = br.read_u16be()? as usize;
             validate!(packet_size == 0);
-            let sample_rate     = br.read_u32be()?;
-            validate!(sample_rate > (1 << 16));
+            let mut sample_rate = br.read_u32be()? >> 16;
+            if sver != 2 {
+                validate!(sample_rate > 0);
+            }
             let cname = if let Some(name) = find_codec_from_mov_audio_fourcc(&fcc) {
                     name
                 } else if let (true, Some(name)) = ((fcc[0] == b'm' && fcc[1] == b's'),  find_codec_from_wav_twocc(u16::from(fcc[2]) * 256 + u16::from(fcc[3]))) {
@@ -710,18 +714,38 @@ fn read_stsd(track: &mut Track, br: &mut ByteReader, size: u64) -> DemuxerResult
                 soniton.signed = false;
             }
             let block_align = 1;
-            if sver == 1 {
-                let samples_per_packet      = br.read_u32be()?;
-                let _bytes_per_packet       = br.read_u32be()?;
-                let bytes_per_frame         = br.read_u32be()?;
-                let _bytes_per_sample       = br.read_u32be()?;
-                track.bsize = bytes_per_frame as usize;
-                track.frame_samples = samples_per_packet as usize;
-                track.tb_num = samples_per_packet;
-            } else {
-                track.bsize = (sample_size / 8) as usize;
-            }
-            track.tb_den = sample_rate >> 16;
+            match sver {
+                1 => {
+                    let samples_per_packet  = br.read_u32be()?;
+                    let _bytes_per_packet   = br.read_u32be()?;
+                    let bytes_per_frame     = br.read_u32be()?;
+                    let _bytes_per_sample   = br.read_u32be()?;
+                    track.bsize = bytes_per_frame as usize;
+                    track.frame_samples = samples_per_packet as usize;
+                    track.tb_num = samples_per_packet;
+                },
+                2 => {
+                                              br.read_u32be()?; // some size
+                    let srate               = br.read_f64be()?;
+                    validate!(srate > 1.0);
+                    sample_rate = srate as u32;
+                    let channels            = br.read_u32be()?;
+                    validate!(channels > 0 && channels < 255);
+                    nchannels = channels as u16;
+                                              br.read_u32be()?; // always 0x7F000000
+                    let _bits_per_csample   = br.read_u32be()?;
+                    let _codec_flags        = br.read_u32be()?;
+                    let bytes_per_frame     = br.read_u32be()?;
+                    let samples_per_packet  = br.read_u32be()?;
+                    track.bsize = bytes_per_frame as usize;
+                    track.frame_samples = samples_per_packet as usize;
+                    track.tb_num = samples_per_packet;
+                },
+                _ => {
+                    track.bsize = (sample_size / 8) as usize;
+                },
+            };
+            track.tb_den = sample_rate;
             track.raw_audio = match &fcc {
                     b"NONE" | b"raw " | b"twos" | b"sowt" |
                     b"in24" | b"in32" | b"fl32" | b"fl64" |
@@ -730,7 +754,7 @@ fn read_stsd(track: &mut Track, br: &mut ByteReader, size: u64) -> DemuxerResult
                     b"MAC3" | b"MAC6" => true,
                     _ => false,
                 };
-            let ahdr = NAAudioInfo::new(sample_rate >> 16, nchannels as u8, soniton, block_align);
+            let ahdr = NAAudioInfo::new(sample_rate, nchannels as u8, soniton, block_align);
             let edata = parse_audio_edata(br, start_pos, size)?;
             codec_info = NACodecInfo::new(cname, NACodecTypeInfo::Audio(ahdr), edata);
             track.channels  = nchannels as usize;
