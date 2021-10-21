@@ -203,6 +203,7 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(video;    "apple-video",          "Apple video"),
     desc!(video;    "sorenson-video",       "Sorenson Video"),
     desc!(video;    "sorenson-video3",      "Sorenson Video 3", CODEC_CAP_REORDER),
+    desc!(audio-ll; "alac",                 "Apple Lossless Audio Codec"),
     desc!(audio;    "mace-3",               "MACE 3:1"),
     desc!(audio;    "mace-6",               "MACE 6:1"),
     desc!(audio;    "ima-adpcm-qt",         "IMA ADPCM (Apple variant)"),
@@ -378,6 +379,8 @@ static MOV_AUDIO_CODEC_REGISTER: &[(&[u8;4], &str)] = &[
     //(b".mp3", "mpeg-layer3"),
 
     (b"mp4a", "aac"),
+
+    (b"alac", "alac"),
 ];
 
 /// Returns video codec short name for provided FOURCC (used in AVI format).

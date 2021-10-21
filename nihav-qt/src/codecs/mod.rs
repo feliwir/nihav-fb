@@ -34,6 +34,9 @@ mod svq3;
 #[allow(clippy::unreadable_literal)]
 mod svq3dsp;
 
+#[cfg(feature="decoder_alac")]
+mod alac;
+
 #[cfg(feature="decoder_ima_adpcm_qt")]
 mod imaadpcm;
 
@@ -73,6 +76,8 @@ const QT_CODECS: &[DecoderInfo] = &[
     DecoderInfo { name: "sorenson-video", get_decoder: svq1::get_decoder },
 #[cfg(feature="decoder_svq3")]
     DecoderInfo { name: "sorenson-video3", get_decoder: svq3::get_decoder },
+#[cfg(feature="decoder_alac")]
+    DecoderInfo { name: "alac", get_decoder: alac::get_decoder },
 #[cfg(feature="decoder_ima_adpcm_qt")]
     DecoderInfo { name: "ima-adpcm-qt", get_decoder: imaadpcm::get_decoder },
 #[cfg(feature="decoder_mace")]
