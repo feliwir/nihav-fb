@@ -5,6 +5,8 @@ pub mod dct;
 #[cfg(feature="fft")]
 #[allow(clippy::erasing_op)]
 pub mod fft;
+#[cfg(feature="lpc")]
+pub mod lpc;
 #[cfg(feature="mdct")]
 pub mod mdct;
 #[cfg(feature="qmf")]
