@@ -35,6 +35,8 @@ use nihav_itu::itu_register_all_decoders;
 
 use nihav_llaudio::llaudio_register_all_decoders;
 use nihav_llaudio::llaudio_register_all_demuxers;
+use nihav_llaudio::llaudio_register_all_encoders;
+use nihav_llaudio::llaudio_register_all_muxers;
 
 use nihav_ms::ms_register_all_decoders;
 use nihav_ms::ms_register_all_encoders;
@@ -80,12 +82,14 @@ pub fn nihav_register_all_demuxers(rd: &mut RegisteredDemuxers) {
 pub fn nihav_register_all_encoders(re: &mut RegisteredEncoders) {
     generic_register_all_encoders(re);
     duck_register_all_encoders(re);
+    llaudio_register_all_encoders(re);
     ms_register_all_encoders(re);
 }
 
 /// Registers all known demuxers.
 pub fn nihav_register_all_muxers(rm: &mut RegisteredMuxers) {
     generic_register_all_muxers(rm);
+    llaudio_register_all_muxers(rm);
 }
 
 #[cfg(test)]

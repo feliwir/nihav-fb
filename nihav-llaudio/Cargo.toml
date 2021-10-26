@@ -10,9 +10,10 @@ features = []
 
 [dependencies.nihav_codec_support]
 path = "../nihav-codec-support"
+features = ["lpc"]
 
 [features]
-default = ["all_decoders", "all_demuxers"]
+default = ["all_decoders", "all_demuxers", "all_encoders", "all_muxers"]
 
 all_decoders = ["decoder_ape", "decoder_flac", "decoder_tta", "decoder_wavpack"]
 decoders = []
@@ -27,3 +28,11 @@ demuxer_ape = ["demuxers"]
 demuxer_flac = ["demuxers"]
 demuxer_tta = ["demuxers"]
 demuxer_wavpack = ["demuxers"]
+
+all_encoders = ["encoder_flac"]
+encoders = []
+encoder_flac = ["encoders"]
+
+all_muxers = ["muxer_flac"]
+muxers = []
+muxer_flac = ["muxers"]

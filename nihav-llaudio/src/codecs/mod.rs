@@ -37,3 +37,18 @@ pub fn llaudio_register_all_decoders(rd: &mut RegisteredDecoders) {
         rd.add_decoder(*decoder);
     }
 }
+
+#[cfg(feature="encoder_flac")]
+pub mod flacenc;
+
+const LL_AUDIO_ENCODERS: &[EncoderInfo] = &[
+#[cfg(feature="decoder_flac")]
+    EncoderInfo { name: "flac", get_encoder: flacenc::get_encoder },
+];
+
+/// Registers all available encoders provided by this crate.
+pub fn llaudio_register_all_encoders(re: &mut RegisteredEncoders) {
+    for encoder in LL_AUDIO_ENCODERS.iter() {
+        re.add_encoder(*encoder);
+    }
+}
