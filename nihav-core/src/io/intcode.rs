@@ -142,7 +142,7 @@ fn read_gammap(br: &mut BitReader) -> BitReaderResult<u32> {
 }
 
 fn uval_to_sval0mp(uval: u32) -> i32 {
-    if (uval & 1) != 0 { -((uval >> 1) as i32) }
+    if (uval & 1) != 0 { -(((uval + 1) >> 1) as i32) }
     else               { (uval >> 1) as i32 }
 }
 
