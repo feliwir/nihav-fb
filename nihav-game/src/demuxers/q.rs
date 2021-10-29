@@ -67,7 +67,7 @@ impl<'a> DemuxCore<'a> for QDemuxer<'a> {
         }
         self.apts = 0;
         self.vpts = 0;
-        self.side_data.truncate(0);
+        self.side_data.clear();
         Ok(())
     }
 

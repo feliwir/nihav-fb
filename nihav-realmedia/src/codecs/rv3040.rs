@@ -326,13 +326,13 @@ impl MVInfo {
     }
     fn reset(&mut self) {
         let size = self.w * self.h;
-        self.mv_f.truncate(0);
+        self.mv_f.clear();
         self.mv_f.resize(size, ZERO_MV);
-        self.mv_b.truncate(0);
+        self.mv_b.clear();
         self.mv_b.resize(size, ZERO_MV);
-        self.has_f.truncate(0);
+        self.has_f.clear();
         self.has_f.resize(size >> 2, false);
-        self.has_b.truncate(0);
+        self.has_b.clear();
         self.has_b.resize(size >> 2, false);
     }
     fn fill(&mut self, mb_x: usize, mb_y: usize, fwd: bool, mv: MV) {
@@ -511,7 +511,7 @@ pub trait RV34DSP {
 fn parse_slice_offsets(src: &[u8], offsets: &mut Vec<usize>) -> DecoderResult<()> {
     let num_slices = (src[0] as usize) + 1;
     let ini_off = num_slices * 8 + 1;
-    offsets.truncate(0);
+    offsets.clear();
 
     if ini_off >= src.len() { return Err(DecoderError::ShortData); }
 

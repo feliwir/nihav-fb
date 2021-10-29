@@ -126,7 +126,7 @@ impl NADecoder for APEDecoder {
             validate!(nblocks > 0);
             let bits                    = u32::from(pktbuf[4]);
             validate!(bits < 32);
-            self.data.truncate(0);
+            self.data.clear();
             self.data.reserve((pktbuf.len() & !3) + 2);
             for word in pktbuf[8..].chunks_exact(4) {
                 self.data.push(word[3]);

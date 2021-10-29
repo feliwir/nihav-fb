@@ -31,8 +31,8 @@ impl Buffers {
     fn reset(&mut self) {
         self.width  = 0;
         self.height = 0;
-        self.sbuf.truncate(0);
-        self.dbuf.truncate(0);
+        self.sbuf.clear();
+        self.dbuf.clear();
     }
     fn alloc(&mut self, w: usize, h: usize) {
         self.width  = w;
@@ -635,7 +635,7 @@ impl Indeo3Decoder {
 
         let nvec = br.read_u32le()?;
         validate!(nvec == 0); // for intra there should be no mc_vecs
-        self.mvs.truncate(0);
+        self.mvs.clear();
         for _ in 0..nvec {
             let x = br.read_byte()? as i8;
             let y = br.read_byte()? as i8;
@@ -662,7 +662,7 @@ impl Indeo3Decoder {
 
         let nvec = br.read_u32le()?;
         validate!(nvec <= 256); // for intra there should be no mc_vecs
-        self.mvs.truncate(0);
+        self.mvs.clear();
         for _ in 0..nvec {
             let y = br.read_byte()? as i8;
             let x = br.read_byte()? as i8;

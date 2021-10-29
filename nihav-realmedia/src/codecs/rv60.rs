@@ -123,7 +123,7 @@ impl FrameHeader {
             signs.push(sign);
         }
         validate!(signs[0]);
-        sizes.truncate(0);
+        sizes.clear();
         let mut sum = 0;
         let first_size                                  = br.read(nbits)? as usize;
         validate!(first_size > 0);
@@ -1506,7 +1506,7 @@ println!("???");
         self.pu_stride = cu_w << 3;
         self.pu_info.resize(self.pu_stride * (cu_h << 3), PUInfo::default());
         self.blk_stride = cu_w << 4;
-        self.blk_info.truncate(0);
+        self.blk_info.clear();
         self.blk_info.resize(self.blk_stride * (cu_h << 4), BlockInfo::default());
         if hdr.deblock {
             self.dblk.reinit(hdr.width, hdr.height);

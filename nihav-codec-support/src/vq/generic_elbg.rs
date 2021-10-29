@@ -199,7 +199,7 @@ impl<T: VQElement+Default, TS: VQElementSum<T>> ELBG<T, TS> {
             }
 
             // put points into the nearest clusters
-            indices.truncate(0);
+            indices.clear();
             for entry in entries.iter() {
                 let mut bestidx = 0;
                 let mut bestdist = std::u32::MAX;
@@ -230,8 +230,8 @@ impl<T: VQElement+Default, TS: VQElementSum<T>> ELBG<T, TS> {
             }
 
             let dmean = dist / (dst.len() as u64);
-            low_u.truncate(0);
-            high_u.truncate(0);
+            low_u.clear();
+            high_u.clear();
             let mut used = vec![false; dst.len()];
             for (i, cluster) in self.clusters.iter().enumerate() {
                 if cluster.dist < dmean {

@@ -426,7 +426,7 @@ impl NADecoder for RALFDecoder {
         let table_bits = ((self.pkt_buf[0] as usize) << 8) | (self.pkt_buf[1] as usize);
         let table_bytes = (table_bits + 7) >> 3;
         validate!(src_len > table_bytes + 3);
-        self.blocks.truncate(0);
+        self.blocks.clear();
         {
             let mut br = BitReader::new(&self.pkt_buf[2..][..table_bytes], BitReaderMode::BE);
             while br.tell() < table_bits {

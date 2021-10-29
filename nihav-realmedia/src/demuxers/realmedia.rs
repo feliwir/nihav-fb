@@ -44,7 +44,7 @@ impl RMVideoStream {
         }
     }
     fn flush(&mut self) {
-        self.frame.truncate(0);
+        self.frame.clear();
         self.frame_size = 0;
         self.frame_pos  = 0;
     }

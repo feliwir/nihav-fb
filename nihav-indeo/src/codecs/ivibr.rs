@@ -510,8 +510,8 @@ impl IVIDecoder {
     fn realloc(&mut self, pic_hdr: &PictureHeader) -> DecoderResult<()> {
         let planes = if pic_hdr.transparent { 4 } else { 3 };
 
-        //self.bands.truncate(0);
-        self.tiles.truncate(0);
+        //self.bands.clear();
+        self.tiles.clear();
         self.num_tiles  = [[0; 4]; 4];
         self.tile_start = [[0; 4]; 4];
         let mut tstart: usize = 0;
@@ -582,7 +582,7 @@ impl IVIDecoder {
                 let mb_h = (tile.h + mb_size - 1) / mb_size;
                 tile.mb_w = mb_w;
                 tile.mb_h = mb_h;
-                tile.mb.truncate(0);
+                tile.mb.clear();
                 tile.mb.resize(mb_w * mb_h, MB::new(0, 0));
             }
 

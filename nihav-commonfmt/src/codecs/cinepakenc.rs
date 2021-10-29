@@ -169,7 +169,7 @@ impl MaskWriter {
         }
     }
     fn reset(&mut self) {
-        self.masks.truncate(0);
+        self.masks.clear();
         self.mask = 0;
         self.pos = 0;
     }
@@ -303,8 +303,8 @@ impl CinepakEncoder {
         let mut voff = in_frm.get_offset(2) + start / 2 * vstride;
         let (width, _) = in_frm.get_dimensions(0);
         let data = in_frm.get_data();
-        self.v1_entries.truncate(0);
-        self.v4_entries.truncate(0);
+        self.v1_entries.clear();
+        self.v4_entries.clear();
         for _ in (start..end).step_by(4) {
             for x in (0..width).step_by(4) {
                 let mut yblk = [0; 16];
@@ -530,7 +530,7 @@ impl CinepakEncoder {
         }
     }
     fn calc_skip_dist(&mut self, in_frm: &NAVideoBuffer<u8>, start: usize, end: usize) {
-        self.skip_dist.truncate(0);
+        self.skip_dist.clear();
         if let Some(ref ref_frm) = self.lastfrm {
             let rystride  = ref_frm.get_stride(0);
             let mut ryoff = ref_frm.get_offset(0) + start * rystride;
@@ -677,8 +677,8 @@ impl CinepakEncoder {
                 }
             }
 
-            self.v1_idx.truncate(0);
-            self.v4_idx.truncate(0);
+            self.v1_idx.clear();
+            self.v4_idx.clear();
             self.masks.reset();
 
             for (v1_entry, v4_entries) in self.v1_entries.iter().zip(self.v4_entries.chunks(4)) {
@@ -810,8 +810,8 @@ impl CinepakEncoder {
                 }
             }
 
-            self.v1_idx.truncate(0);
-            self.v4_idx.truncate(0);
+            self.v1_idx.clear();
+            self.v4_idx.clear();
             self.masks.reset();
 
             let mut skip_iter = self.skip_dist.iter();

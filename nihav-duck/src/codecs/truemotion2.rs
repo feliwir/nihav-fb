@@ -102,7 +102,7 @@ impl Default for TM2Stream {
 
 impl TM2Stream {
     fn read_header(&mut self, src: &[u8], br: &mut ByteReader) -> DecoderResult<()> {
-        self.tokens.truncate(0);
+        self.tokens.clear();
         self.pos = 0;
 
         let len                                 = br.read_u32le()? as usize;

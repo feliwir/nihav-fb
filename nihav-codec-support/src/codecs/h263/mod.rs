@@ -358,9 +358,9 @@ impl CBPInfo {
     fn new() -> Self { CBPInfo{ cbp: Vec::new(), q: Vec::new(), mb_w: 0 } }
     fn reset(&mut self, mb_w: usize) {
         self.mb_w = mb_w;
-        self.cbp.truncate(0);
+        self.cbp.clear();
         self.cbp.resize(self.mb_w * 2, 0);
-        self.q.truncate(0);
+        self.q.clear();
         self.q.resize(self.mb_w * 2, 0);
     }
     fn update_row(&mut self) {

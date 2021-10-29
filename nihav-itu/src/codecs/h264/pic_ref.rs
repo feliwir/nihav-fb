@@ -200,8 +200,8 @@ impl FrameRefs {
                     self.long_term.resize(arg1 as usize, None);
                 },
                 5 => {
-                    self.ref_pics.truncate(0);
-                    self.long_term.truncate(0);
+                    self.ref_pics.clear();
+                    self.long_term.clear();
                 },
                 6 => {
                     // assign an long term index to current pic - done elsewhere
@@ -212,13 +212,13 @@ impl FrameRefs {
         Ok(())
     }
     pub fn clear_refs(&mut self) {
-        self.ref_pics.truncate(0);
-        self.long_term.truncate(0);
+        self.ref_pics.clear();
+        self.long_term.clear();
     }
     #[allow(clippy::cognitive_complexity)]
     pub fn select_refs(&mut self, sps: &SeqParameterSet, slice_hdr: &SliceHeader, cur_id: u32) {
-        self.ref_list0.truncate(0);
-        self.ref_list1.truncate(0);
+        self.ref_list0.clear();
+        self.ref_list1.clear();
         let pic_num_mask = if sps.log2_max_frame_num == 16 {
                 0xFFFF
             } else {

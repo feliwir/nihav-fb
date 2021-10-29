@@ -294,7 +294,7 @@ impl<'a> SmackerVideoDemuxer<'a> {
         }
     }
     fn reset_state(&mut self) {
-        self.queued_packets.truncate(0);
+        self.queued_packets.clear();
     }
 }
 

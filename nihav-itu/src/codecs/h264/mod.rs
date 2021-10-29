@@ -194,7 +194,7 @@ struct H264Decoder {
 fn unescape_nal(src: &[u8], dst: &mut Vec<u8>) -> usize {
     let mut off = 0;
     let mut zrun = 0;
-    dst.truncate(0);
+    dst.clear();
     dst.reserve(src.len());
     while off < src.len() {
         dst.push(src[off]);

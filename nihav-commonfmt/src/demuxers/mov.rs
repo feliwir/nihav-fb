@@ -791,7 +791,7 @@ fn read_stts(track: &mut Track, br: &mut ByteReader, size: u64) -> DemuxerResult
         validate!(tb_num != 0);
         track.rescale(tb_num);
     } else {
-        track.time_to_sample.truncate(0);
+        track.time_to_sample.clear();
         track.time_to_sample.reserve(entries);
         for _ in 0..entries {
             let count       = br.read_u32be()?;
@@ -1148,7 +1148,7 @@ struct RLESearcher<T> {
 impl<T:Default+Copy> RLESearcher<T> {
     fn new() -> Self { Self::default() }
     fn resize(&mut self, size: usize) {
-        self.array.truncate(0);
+        self.array.clear();
         self.array.reserve(size);
     }
     fn reserve(&mut self, size: usize) {

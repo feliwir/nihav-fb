@@ -291,7 +291,7 @@ impl SVQ1Decoder {
                 ((self.width / 4 + 15) & !15, (self.height / 4 + 15) & !15)
             };
         let mvstride = w / 8;
-        self.mvs.truncate(0);
+        self.mvs.clear();
         self.mvs.resize(mvstride * (h / 8), ZERO_MV);
         let mut mv_idx = 0;
 

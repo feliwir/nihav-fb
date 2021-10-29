@@ -140,13 +140,13 @@ impl MVInfo {
     }
     fn reset(&mut self) {
         let size = self.w * self.h;
-        self.mv_f.truncate(0);
+        self.mv_f.clear();
         self.mv_f.resize(size, ZERO_MV);
-        self.mv_b.truncate(0);
+        self.mv_b.clear();
         self.mv_b.resize(size, ZERO_MV);
-        self.has_f.truncate(0);
+        self.has_f.clear();
         self.has_f.resize(size >> 4, false);
-        self.has_b.truncate(0);
+        self.has_b.clear();
         self.has_b.resize(size >> 4, false);
     }
     fn fill(&mut self, mb_x: usize, mb_y: usize, fwd: bool, mv: MV) {
@@ -518,7 +518,7 @@ unimplemented!();
             };
         let slice_len = length + llen + 1;
         validate!(src.len() >= slice_len);
-        self.slice_buf.truncate(0);
+        self.slice_buf.clear();
         if llen > 1 {
             self.slice_buf.extend_from_slice(&src[slice_len - llen + 1..][..llen - 1]);
         }

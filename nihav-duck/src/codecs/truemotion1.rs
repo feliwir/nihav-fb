@@ -599,7 +599,7 @@ impl NADecoder for TM1Decoder {
         let mask_bits = &src[hdr_size..][..mask_size];
         let index_bytes = &src[hdr_size+mask_size..];
         validate!(src.len() >= hdr_size + mask_size);
-        self.vert_pred.truncate(0);
+        self.vert_pred.clear();
         self.vert_pred.resize(out_width, 0);
 
         if is_intra || is_sprite {

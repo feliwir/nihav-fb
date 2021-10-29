@@ -10,7 +10,7 @@ struct RawH264Demuxer<'a> {
 }
 
 fn read_nal(src: &mut ByteReader, dst: &mut Vec<u8>) -> DemuxerResult<()> {
-    dst.truncate(0);
+    dst.clear();
     loop {
         let b                           = src.read_byte()?;
         if b == 0 {
@@ -124,7 +124,7 @@ impl<'a> DemuxCore<'a> for RawH264Demuxer<'a> {
         let mut buf: Vec<u8> = Vec::with_capacity(65536);
         if !self.frame_buf.is_empty() {
             put_nal(&mut buf, &self.frame_buf);
-            self.frame_buf.truncate(0);
+            self.frame_buf.clear();
         }
         let strres = strmgr.get_stream(0);
         if strres.is_none() {

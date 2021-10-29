@@ -538,16 +538,16 @@ impl H263BaseDecoder {
             if capacity < self.num_mb {
                 self.obmc_blk.reserve(self.num_mb - capacity);
             }
-            self.obmc_blk.truncate(0);
+            self.obmc_blk.clear();
         }
 
         if self.has_b {
-            self.mv_data.truncate(0);
+            self.mv_data.clear();
         }
 
         let save_b_data = pinfo.mode.is_ref() && self.may_have_b_frames;
         if save_b_data {
-            self.mv_data.truncate(0);
+            self.mv_data.clear();
         }
         let is_b = pinfo.mode == Type::B;
 
@@ -580,7 +580,7 @@ impl H263BaseDecoder {
         let mut mb_pos = 0;
         let apply_acpred = /*(pinfo.mode == Type::I) && */pinfo.plusinfo.is_some() && pinfo.plusinfo.unwrap().aic;
         if apply_acpred {
-            self.pred_coeffs.truncate(0);
+            self.pred_coeffs.clear();
             if !self.pred_quant {
                 self.pred_coeffs.resize(self.mb_w * self.mb_h, ZERO_PRED_COEFFS);
             } else {
@@ -796,7 +796,7 @@ impl H263BaseDecoder {
             recon_b_frame(b_buf, bck_buf.clone(), fwd_buf.clone(), self.mb_w, self.mb_h, self.b_data.as_slice(), bdsp);
         }
 
-        self.b_data.truncate(0);
+        self.b_data.clear();
         Ok(bufinfo)
     }
 }

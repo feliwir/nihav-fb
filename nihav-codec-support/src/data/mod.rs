@@ -54,7 +54,7 @@ impl<T:Copy> GenericCache<T> {
     pub fn full_size(&self) -> usize { self.stride * (self.height + 1) + 1 }
     /// Resets the cache state.
     pub fn reset(&mut self) {
-        self.data.truncate(0);
+        self.data.clear();
         let size = self.full_size();
         self.data.resize(size, self.default);
         self.xpos = self.stride + 1;

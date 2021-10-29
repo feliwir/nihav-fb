@@ -109,7 +109,7 @@ impl<'a> MuxCore<'a> for AVIMuxer<'a> {
         self.bw.write_u32le(0)?; // reserved
         self.bw.write_u32le(0)?; // reserved
 
-        self.pal_pos.truncate(0);
+        self.pal_pos.clear();
         self.pal_pos.resize(strmgr.get_num_streams(), 0);
         for (strno, str) in strmgr.iter().enumerate() {
             let strl_pos = self.bw.tell() + 8;

@@ -184,7 +184,7 @@ impl ZMBVEncoder {
             }
             bw.write_buf(&self.frm1[..self.width * self.height * bm])?;
         } else {
-            self.tmp_buf.truncate(0);
+            self.tmp_buf.clear();
             if bpp == 8 {
                 self.tmp_buf.extend_from_slice(&self.pal);
             }
@@ -193,7 +193,7 @@ impl ZMBVEncoder {
 
             let mut db = Vec::new();
             std::mem::swap(&mut db, &mut self.zbuf);
-            db.truncate(0);
+            db.clear();
             let mut wr = DeflateWriter::new(db);
             self.compr.write_zlib_header(&mut wr);
             self.compr.compress(&self.tmp_buf, &mut wr);
@@ -211,7 +211,7 @@ impl ZMBVEncoder {
             self.frm1.copy_from_slice(&self.frm2);
 
             bw.write_byte(0)?;
-            self.tmp_buf.truncate(0);
+            self.tmp_buf.clear();
             let tile_w = (self.width  + self.tile_w - 1) / self.tile_w;
             let tile_h = (self.height + self.tile_h - 1) / self.tile_h;
             let mv_size = (tile_w * tile_h * 2 + 3) & !3;
@@ -224,7 +224,7 @@ impl ZMBVEncoder {
                 let mut db = Vec::new();
 
                 std::mem::swap(&mut db, &mut self.zbuf);
-                db.truncate(0);
+                db.clear();
                 let mut wr = DeflateWriter::new(db);
                 self.compr.compress(&self.tmp_buf, &mut wr);
                 self.compr.compress_flush(&mut wr);
@@ -240,7 +240,7 @@ impl ZMBVEncoder {
             return Err(EncoderError::FormatError);
         }
 
-        self.tmp_buf.truncate(0);
+        self.tmp_buf.clear();
         if let (NABufferType::Video(ref vbuf), true) = (&buf, bpp == 8) {
             let mut npal = [0; 768];
             let off = vbuf.get_offset(1);
@@ -356,7 +356,7 @@ impl ZMBVEncoder {
             let mut db = Vec::new();
 
             std::mem::swap(&mut db, &mut self.zbuf);
-            db.truncate(0);
+            db.clear();
             let mut wr = DeflateWriter::new(db);
             self.compr.compress(&self.tmp_buf, &mut wr);
             self.compr.compress_flush(&mut wr);

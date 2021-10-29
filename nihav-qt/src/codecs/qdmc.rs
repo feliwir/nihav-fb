@@ -138,7 +138,7 @@ impl QdmcDecoder {
     }
     fn read_wave_data(&mut self, br: &mut BitReader) -> DecoderResult<()> {
         for tone in self.tones.iter_mut() {
-            tone.truncate(0);
+            tone.clear();
         }
         for group in 0..5 {
             let group_size = 1 << (self.frame_bits - group - 1);

@@ -68,7 +68,7 @@ impl NADecoder for MSADPCMDecoder {
             self.block_samps = (self.block_len / channels - 7) * 2 + 2;
             self.ainfo = NAAudioInfo::new(ainfo.get_sample_rate(), channels as u8, SND_S16P_FORMAT, self.block_samps);
             self.chmap = NAChannelMap::from_str(if channels == 1 { "C" } else { "L,R" }).unwrap();
-            self.adapt_coeffs.truncate(0);
+            self.adapt_coeffs.clear();
             if let Some(ref buf) = info.get_extradata() {
                 validate!(buf.len() >= 6);
                 validate!((buf.len() & 3) == 0);
