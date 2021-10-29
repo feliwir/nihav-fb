@@ -752,7 +752,7 @@ impl<T:Copy> NAVideoBufferPool<T> {
     }
     /// Clears the pool from all frames.
     pub fn reset(&mut self) {
-        self.pool.truncate(0);
+        self.pool.clear();
     }
 }
 

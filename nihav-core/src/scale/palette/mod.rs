@@ -102,7 +102,7 @@ fn palettise_frame_internal(pic_in: &NABufferType, pic_out: &mut NABufferType, q
         let ofmt = dbuf.get_info().get_format();
         let dst = dbuf.get_data_mut().unwrap();
 
-        pixels.truncate(0);
+        pixels.clear();
         if !ifmt.is_unpacked() {
             let esize = ifmt.elem_size as usize;
             let coffs = [ifmt.comp_info[0].unwrap().comp_offs as usize, ifmt.comp_info[1].unwrap().comp_offs as usize, ifmt.comp_info[2].unwrap().comp_offs as usize];

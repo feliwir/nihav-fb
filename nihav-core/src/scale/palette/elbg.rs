@@ -236,7 +236,7 @@ impl ELBG {
                 self.clusters[i].reset();
             }
             // put pixels into the nearest clusters
-            indices.truncate(0);
+            indices.clear();
             for entry in entries.iter() {
                 let mut bestidx = 0;
                 let mut bestdist = std::u32::MAX;
@@ -267,8 +267,8 @@ impl ELBG {
             }
 
             let dmean = dist / 256;
-            low_u.truncate(0);
-            high_u.truncate(0);
+            low_u.clear();
+            high_u.clear();
             let mut used = [false; 256];
             for (i, cluster) in self.clusters.iter().enumerate() {
                 if cluster.dist < dmean {

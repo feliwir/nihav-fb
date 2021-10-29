@@ -159,7 +159,7 @@ impl FrameReorderer for ComplexReorderer {
     fn flush(&mut self) {
         self.last_ref_dts = None;
         self.ready_idx = 0;
-        self.frames.truncate(0);
+        self.frames.clear();
     }
     fn get_last_frames(&mut self) -> Option<NAFrameRef> {
         if !self.frames.is_empty() {

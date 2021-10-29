@@ -1654,7 +1654,7 @@ impl LZParse for OptimalParser {
         }
         dst.reserve(src.len());
 
-        self.trellis.truncate(0);
+        self.trellis.clear();
         self.trellis.reserve(src.len() + 1);
         for _ in 0..=src.len() {
             self.trellis.push(TNode::default());
@@ -1897,7 +1897,7 @@ impl Deflate {
             Mode::Fixed => {
                 wr.write(final_block as u16, 1);
                 wr.write(1, 2);
-                self.tokens.truncate(0);
+                self.tokens.clear();
                 self.parser.parse(&self.srcbuf[..self.ssize], &mut self.tokens);
                 let mut codes = CodeHuff::new(true);
                 codes.make_codes(&self.tokens);
@@ -1908,7 +1908,7 @@ impl Deflate {
             Mode::Dynamic => {
                 wr.write(final_block as u16, 1);
                 wr.write(2, 2);
-                self.tokens.truncate(0);
+                self.tokens.clear();
                 self.parser.parse(&self.srcbuf[..self.ssize], &mut self.tokens);
                 let mut codes = CodeHuff::new(false);
                 codes.make_codes(&self.tokens);
