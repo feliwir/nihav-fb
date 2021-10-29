@@ -1,3 +1,4 @@
+//! Crate for providing support for ITU codecs.
 extern crate nihav_core;
 extern crate nihav_codec_support;
 

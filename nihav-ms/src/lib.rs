@@ -1,3 +1,4 @@
+//! Crate for providing support for various Microsoft multimedia formats.
 extern crate nihav_core;
 extern crate nihav_codec_support;
 

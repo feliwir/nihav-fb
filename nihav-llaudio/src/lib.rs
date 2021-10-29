@@ -1,3 +1,4 @@
+//! Crate for providing support for various lossless audio formats.
 extern crate nihav_core;
 extern crate nihav_codec_support;
 

@@ -1,3 +1,4 @@
+//! Crate for providing support for various common formats.
 extern crate nihav_core;
 extern crate nihav_codec_support;
 extern crate nihav_registry;
