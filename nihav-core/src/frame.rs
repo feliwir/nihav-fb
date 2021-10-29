@@ -390,6 +390,17 @@ impl NABufferType {
             _ => 0,
         }
     }
+    /// Truncates audio frame duration if possible.
+    pub fn truncate_audio(&mut self, len: usize) {
+        match *self {
+            NABufferType::AudioU8(ref mut ab)     => ab.truncate(len),
+            NABufferType::AudioI16(ref mut ab)    => ab.truncate(len),
+            NABufferType::AudioI32(ref mut ab)    => ab.truncate(len),
+            NABufferType::AudioF32(ref mut ab)    => ab.truncate(len),
+            NABufferType::AudioPacked(ref mut ab) => ab.truncate(len),
+            _ => {},
+        };
+    }
     /// Returns the distance between starts of two channels.
     pub fn get_audio_stride(&self) -> usize {
         match *self {
