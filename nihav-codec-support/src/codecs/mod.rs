@@ -11,19 +11,19 @@ use std::mem;
 ///
 /// # Examples
 ///
-/// ````norun
+/// ```ignore
 /// let mut frame = if is_intra_frame {
 ///         allocate_video_frame()
 ///     } else {
 ///         let ret = shuffler.clone_ref();
 ///         if ret.is_none() {
-///             return Err(DecodingError::MissingReference);
+///             return Err(DecoderError::MissingReference);
 ///         }
 ///         ret.unwrap()
 ///     };
 /// // output data into the frame
 /// shuffler.add_frame(frame.clone()); // tells frame manager to use the frame as the next reference
-/// ````
+/// ```
 #[allow(dead_code)]
 pub struct HAMShuffler<T: Copy> {
     lastframe: Option<NAVideoBufferRef<T>>,
@@ -72,18 +72,18 @@ impl<T: Copy> Default for HAMShuffler<T> {
 ///
 /// # Examples
 ///
-/// ````norun
+/// ```ignore
 /// let mut frame = allocate_video_frame();
 /// if is_inter_frame {
 ///     let ret = shuffler.get_ref();
 ///     if ret.is_none() {
-///         return Err(DecodingError::MissingReference);
+///         return Err(DecoderError::MissingReference);
 ///     }
 ///     let ref_frame = ret.unwrap();
 ///     // keep decoding using data from ref_frame
 /// }
 /// shuffler.add_frame(frame.clone()); // tells frame manager to use the frame as the next reference
-/// ````
+/// ```
 #[allow(dead_code)]
 pub struct IPShuffler {
     lastframe: Option<NAVideoBufferRef<u8>>,
@@ -122,7 +122,7 @@ impl Default for IPShuffler {
 ///
 /// # Examples
 ///
-/// ````norun
+/// ```ignore
 /// let mut frame = allocate_video_frame();
 /// for mb in all_macroblocks {
 ///     // decode macroblock type
@@ -144,7 +144,7 @@ impl Default for IPShuffler {
 /// if is_intra_frame || is_p_frame {
 ///     shuffler.add_frame(frame.clone()); // tells frame manager to use the frame as the next reference
 /// }
-/// ````
+/// ```
 #[allow(dead_code)]
 pub struct IPBShuffler {
     lastframe: Option<NAVideoBufferRef<u8>>,
