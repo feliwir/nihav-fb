@@ -289,7 +289,6 @@ impl NADecoder for TTADecoder {
                         if not_last {
                             self.framelen
                         } else {
-                            adata.truncate((self.nsamples % self.framelen) as usize);
                             self.nsamples % self.framelen
                         }
                     },
@@ -300,12 +299,12 @@ impl NADecoder for TTADecoder {
                         if not_last {
                             self.framelen
                         } else {
-                            adata.truncate((self.nsamples % self.framelen) as usize);
                             self.nsamples % self.framelen
                         }
                     },
                     _ => unreachable!(),
                 };
+            abuf.truncate_audio(duration as usize);
 
             let mut frm = NAFrame::new_from_pkt(pkt, info, abuf);
             frm.set_duration(Some(u64::from(duration)));

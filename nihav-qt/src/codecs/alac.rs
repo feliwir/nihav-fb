@@ -356,7 +356,7 @@ impl NADecoder for ALACDecoder {
         if let NACodecTypeInfo::Audio(_) = info.get_properties() {
             let src = pkt.get_buffer();
             let channels = self.chmap.num_channels();
-            let abuf = alloc_audio_buffer(self.ainfo, self.frame_len, self.chmap.clone())?;
+            let mut abuf = alloc_audio_buffer(self.ainfo, self.frame_len, self.chmap.clone())?;
 
             let mut br = BitReader::new(&src, BitReaderMode::BE);
 
@@ -390,7 +390,6 @@ impl NADecoder for ALACDecoder {
                         _ => return Err(DecoderError::InvalidData),
                     };
                 }
-                adata.truncate(self.cur_len);
             } else if let Some(mut adata) = abuf.get_abuf_i32() {
                 let shift = 32 - self.bits;
                 let stride = adata.get_stride();
@@ -420,10 +419,10 @@ impl NADecoder for ALACDecoder {
                         _ => return Err(DecoderError::InvalidData),
                     };
                 }
-                adata.truncate(self.cur_len);
             } else {
                 return Err(DecoderError::Bug);
             }
+            abuf.truncate_audio(self.cur_len);
 
             let mut frm = NAFrame::new_from_pkt(pkt, info.replace_info(NACodecTypeInfo::Audio(self.ainfo)), abuf);
             frm.set_duration(Some(self.cur_len as u64));
