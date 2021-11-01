@@ -356,6 +356,14 @@ impl Inflate {
         self.full_pos += len;
         Ok(())
     }
+    ///! Sets custom history for decoding an update for already decoded data.
+    pub fn set_dict(&mut self, dict: &[u8]) {
+        let len = dict.len().min(self.buf.len());
+        let start = dict.len() - len;
+        self.buf[..len].copy_from_slice(&dict[start..]);
+        self.bpos = len;
+        self.full_pos = len;
+    }
     ///! Reports whether decoder has finished decoding the input.
     pub fn is_finished(&self) -> bool {
         match self.state {
