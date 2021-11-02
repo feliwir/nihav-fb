@@ -236,6 +236,12 @@ const DETECTORS: &[DetectConditions] = &[
         conditions: &[CheckItem{offs: 0, cond: &CC::Str(b"YUV4MPEG2 ") }],
     },
     DetectConditions {
+        demux_name: "flv",
+        extensions: ".flv",
+        conditions: &[CheckItem{offs: 0, cond: &CC::Str(b"FLV") },
+                      CheckItem{offs: 3, cond: &CC::Le(Arg::Byte(1)) }],
+    },
+    DetectConditions {
         demux_name: "ivf",
         extensions: ".ivf",
         conditions: &[CheckItem{offs: 0, cond: &CC::Str(b"DKIF\x00\x00")},

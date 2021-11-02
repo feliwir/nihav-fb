@@ -26,6 +26,11 @@ use nihav_duck::duck_register_all_decoders;
 use nihav_duck::duck_register_all_demuxers;
 use nihav_duck::duck_register_all_encoders;
 
+use nihav_flash::flash_register_all_decoders;
+use nihav_flash::flash_register_all_demuxers;
+use nihav_flash::flash_register_all_encoders;
+use nihav_flash::flash_register_all_muxers;
+
 use nihav_game::game_register_all_decoders;
 use nihav_game::game_register_all_demuxers;
 
@@ -56,6 +61,7 @@ use nihav_vivo::vivo_register_all_demuxers;
 pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
     generic_register_all_decoders(rd);
     duck_register_all_decoders(rd);
+    flash_register_all_decoders(rd);
     game_register_all_decoders(rd);
     indeo_register_all_decoders(rd);
     itu_register_all_decoders(rd);
@@ -71,6 +77,7 @@ pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
 pub fn nihav_register_all_demuxers(rd: &mut RegisteredDemuxers) {
     duck_register_all_demuxers(rd);
     generic_register_all_demuxers(rd);
+    flash_register_all_demuxers(rd);
     game_register_all_demuxers(rd);
     llaudio_register_all_demuxers(rd);
     rad_register_all_demuxers(rd);
@@ -80,6 +87,7 @@ pub fn nihav_register_all_demuxers(rd: &mut RegisteredDemuxers) {
 
 /// Registers all known encoders.
 pub fn nihav_register_all_encoders(re: &mut RegisteredEncoders) {
+    flash_register_all_encoders(re);
     generic_register_all_encoders(re);
     duck_register_all_encoders(re);
     llaudio_register_all_encoders(re);
@@ -88,6 +96,7 @@ pub fn nihav_register_all_encoders(re: &mut RegisteredEncoders) {
 
 /// Registers all known demuxers.
 pub fn nihav_register_all_muxers(rm: &mut RegisteredMuxers) {
+    flash_register_all_muxers(rm);
     generic_register_all_muxers(rm);
     llaudio_register_all_muxers(rm);
 }

@@ -99,6 +99,8 @@ const DUCK_CODECS: &[DecoderInfo] = &[
 #[cfg(feature="decoder_vp6")]
     DecoderInfo { name: "vp6", get_decoder: vp6::get_decoder_vp6 },
 #[cfg(feature="decoder_vp6")]
+    DecoderInfo { name: "vp6f", get_decoder: vp6::get_decoder_vp6f },
+#[cfg(feature="decoder_vp6")]
     DecoderInfo { name: "vp6a", get_decoder: vp6::get_decoder_vp6_alpha },
 #[cfg(feature="decoder_vp7")]
     DecoderInfo { name: "vp7", get_decoder: vp7::get_decoder },
@@ -129,6 +131,8 @@ mod vp6enc;
 const DUCK_ENCODERS: &[EncoderInfo] = &[
 #[cfg(feature="encoder_vp6")]
     EncoderInfo { name: "vp6", get_encoder: vp6enc::get_encoder },
+#[cfg(feature="encoder_vp6")]
+    EncoderInfo { name: "vp6f", get_encoder: vp6enc::get_encoder_flv },
 ];
 
 /// Registers all available encoders provided by this crate.

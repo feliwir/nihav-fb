@@ -219,7 +219,8 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(video;    "vp4",           "VP4"),
     desc!(video;    "vp5",           "VP5"),
     desc!(video;    "vp6",           "VP6"),
-    desc!(video;    "vp6a",          "VP6"),
+    desc!(video;    "vp6f",          "VP6 (in Flash)"),
+    desc!(video;    "vp6a",          "VP6 with alpha"),
     desc!(video;    "vp7",           "VP7"),
     desc!(video;    "vp8",           "VP8"),
     desc!(video;    "vp9",           "VP9"),
@@ -227,6 +228,15 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(audio;    "adpcm-dk4",     "Duck DK4 ADPCM"),
     desc!(audio;    "on2avc-500",    "On2 AVC"),
     desc!(audio;    "on2avc-501",    "On2 AVC"),
+
+    desc!(video;     "flv263",       "Sorenson H.263"),
+    desc!(video-llp; "flashsv",      "Flash Screen Video"),
+    desc!(video-llp; "flashsv2",     "Flash Screen Video 2"),
+    desc!(audio;     "asao",         "N*llym*s*r ASAO"),
+    desc!(audio;     "flv-adpcm",    "Flash ADPCM"),
+
+    desc!(audio;     "mp3",          "MPEG Audio Layer III"),
+    desc!(audio;     "speex",        "Speex"),
 
     desc!(video;    "gdv-video",     "Gremlin Digital Video - video"),
     desc!(audio;    "gdv-audio",     "Gremlin Digital Video - audio"),

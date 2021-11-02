@@ -478,15 +478,17 @@ struct VP6Decoder {
     info:       NACodecInfoRef,
     br:         VP6BR,
     has_alpha:  bool,
+    flipped:    bool,
 }
 
 impl VP6Decoder {
-    fn new(has_alpha: bool) -> Self {
+    fn new(flipped: bool, has_alpha: bool) -> Self {
         Self {
-            dec:        VP56Decoder::new(6, has_alpha, true),
+            dec:        VP56Decoder::new(6, has_alpha, flipped),
             info:       NACodecInfoRef::default(),
             br:         VP6BR::new(),
             has_alpha,
+            flipped,
         }
     }
 }
@@ -499,7 +501,15 @@ impl NADecoder for VP6Decoder {
                 } else {
                     VP_YUVA420_FORMAT
                 };
-            let myvinfo = NAVideoInfo::new(vinfo.get_width(), vinfo.get_height(), false, fmt);
+            let mut width  = vinfo.get_width();
+            let mut height = vinfo.get_height();
+            if let (false, Some(edta)) = (self.flipped, info.get_extradata()) {
+                if (width & 0xF) == 0 && (height & 0xF) == 0 {
+                    width  -= usize::from(edta[0] >> 4);
+                    height -= usize::from(edta[0] & 0xF);
+                }
+            }
+            let myvinfo = NAVideoInfo::new(width, height, self.flipped, fmt);
             let myinfo = NACodecTypeInfo::Video(myvinfo);
             self.info = NACodecInfo::new_ref(info.get_name(), myinfo, info.get_extradata()).into_ref();
             self.dec.init(supp, myvinfo)?;
@@ -530,11 +540,15 @@ impl NAOptionHandler for VP6Decoder {
 }
 
 pub fn get_decoder_vp6() -> Box<dyn NADecoder + Send> {
-    Box::new(VP6Decoder::new(false))
+    Box::new(VP6Decoder::new(true, false))
+}
+
+pub fn get_decoder_vp6f() -> Box<dyn NADecoder + Send> {
+    Box::new(VP6Decoder::new(false, false))
 }
 
 pub fn get_decoder_vp6_alpha() -> Box<dyn NADecoder + Send> {
-    Box::new(VP6Decoder::new(true))
+    Box::new(VP6Decoder::new(false, true))
 }
 
 #[cfg(test)]
@@ -605,6 +619,6 @@ mod test {
                             [0xd3801a96, 0x1b5384ff, 0x422b228c, 0x9c4582c4],
                             [0x8ddb0dfe, 0x302eb1ed, 0x10e64e22, 0x5a5a62b9],
                             [0x79338328, 0x06113781, 0x8b116d18, 0xde56707e],
-                            [0x671fa1b3, 0x0b3e41e9, 0xeb3a494c, 0xcdd24b1b]]));
+                            [0xdb58433b, 0x1de4ce67, 0x15fcbcee, 0x1df9de61]]));
     }
 }

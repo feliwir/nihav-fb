@@ -172,6 +172,7 @@ struct VP6Encoder {
     fenc:       FrameEncoder,
     ratectl:    RateControl,
 
+    flipped:    bool,
     huffman:    bool,
 
     version:    u8,
@@ -191,7 +192,7 @@ struct VP6Encoder {
 }
 
 impl VP6Encoder {
-    fn new() -> Self {
+    fn new(flipped: bool) -> Self {
         let vt = alloc_video_buffer(NAVideoInfo::new(24, 24, false, VP_YUVA420_FORMAT), 4).unwrap();
         let mc_buf = vt.get_vbuf().unwrap();
         Self {
@@ -207,6 +208,7 @@ impl VP6Encoder {
             ratectl:    RateControl::new(),
             mc_buf,
 
+            flipped,
             huffman:    false,
 
             version:    VERSION_VP60,
@@ -633,12 +635,12 @@ impl NAEncoder for VP6Encoder {
         match encinfo.format {
             NACodecTypeInfo::None => {
                 let mut ofmt = EncodeParameters::default();
-                ofmt.format = NACodecTypeInfo::Video(NAVideoInfo::new(0, 0, true, YUV420_FORMAT));
+                ofmt.format = NACodecTypeInfo::Video(NAVideoInfo::new(0, 0, self.flipped, YUV420_FORMAT));
                 Ok(ofmt)
             },
             NACodecTypeInfo::Audio(_) => Err(EncoderError::FormatError),
             NACodecTypeInfo::Video(vinfo) => {
-                let outinfo = NAVideoInfo::new((vinfo.width + 3) & !3, (vinfo.height + 3) & !3, true, YUV420_FORMAT);
+                let outinfo = NAVideoInfo::new((vinfo.width + 3) & !3, (vinfo.height + 3) & !3, self.flipped, YUV420_FORMAT);
                 let mut ofmt = *encinfo;
                 ofmt.format = NACodecTypeInfo::Video(outinfo);
                 Ok(ofmt)
@@ -660,8 +662,8 @@ impl NAEncoder for VP6Encoder {
                     return Err(EncoderError::FormatError);
                 }
 
-                let out_info = NAVideoInfo::new(vinfo.width, vinfo.height, true, vinfo.format);
-                let info = NACodecInfo::new("vp6", NACodecTypeInfo::Video(out_info), None);
+                let out_info = NAVideoInfo::new(vinfo.width, vinfo.height, self.flipped, vinfo.format);
+                let info = NACodecInfo::new(if self.flipped { "vp6" } else { "vp6f" }, NACodecTypeInfo::Video(out_info), None);
                 let mut stream = NAStream::new(StreamType::Video, stream_id, info, encinfo.tb_num, encinfo.tb_den, 0);
                 stream.set_num(stream_id as usize);
                 let stream = stream.into_ref();
@@ -854,7 +856,11 @@ impl NAOptionHandler for VP6Encoder {
 }
 
 pub fn get_encoder() -> Box<dyn NAEncoder + Send> {
-    Box::new(VP6Encoder::new())
+    Box::new(VP6Encoder::new(true))
+}
+
+pub fn get_encoder_flv() -> Box<dyn NAEncoder + Send> {
+    Box::new(VP6Encoder::new(false))
 }
 
 #[cfg(test)]
