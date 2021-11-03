@@ -17,45 +17,18 @@ use nihav_core::codecs::RegisteredEncoders;
 use nihav_core::demuxers::RegisteredDemuxers;
 use nihav_core::muxers::RegisteredMuxers;
 
-use nihav_commonfmt::generic_register_all_decoders;
-use nihav_commonfmt::generic_register_all_demuxers;
-use nihav_commonfmt::generic_register_all_encoders;
-use nihav_commonfmt::generic_register_all_muxers;
-
-use nihav_duck::duck_register_all_decoders;
-use nihav_duck::duck_register_all_demuxers;
-use nihav_duck::duck_register_all_encoders;
-
-use nihav_flash::flash_register_all_decoders;
-use nihav_flash::flash_register_all_demuxers;
-use nihav_flash::flash_register_all_encoders;
-use nihav_flash::flash_register_all_muxers;
-
-use nihav_game::game_register_all_decoders;
-use nihav_game::game_register_all_demuxers;
-
+use nihav_commonfmt::*;
+use nihav_duck::*;
+use nihav_flash::*;
+use nihav_game::*;
 use nihav_indeo::indeo_register_all_decoders;
-
 use nihav_itu::itu_register_all_decoders;
-
-use nihav_llaudio::llaudio_register_all_decoders;
-use nihav_llaudio::llaudio_register_all_demuxers;
-use nihav_llaudio::llaudio_register_all_encoders;
-use nihav_llaudio::llaudio_register_all_muxers;
-
-use nihav_ms::ms_register_all_decoders;
-use nihav_ms::ms_register_all_encoders;
-
+use nihav_llaudio::*;
+use nihav_ms::*;
 use nihav_qt::qt_register_all_decoders;
-
-use nihav_rad::rad_register_all_decoders;
-use nihav_rad::rad_register_all_demuxers;
-
-use nihav_realmedia::realmedia_register_all_decoders;
-use nihav_realmedia::realmedia_register_all_demuxers;
-
-use nihav_vivo::vivo_register_all_decoders;
-use nihav_vivo::vivo_register_all_demuxers;
+use nihav_rad::*;
+use nihav_realmedia::*;
+use nihav_vivo::*;
 
 /// Registers all known decoders.
 pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
