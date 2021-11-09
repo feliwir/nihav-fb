@@ -24,6 +24,7 @@ use nihav_game::*;
 use nihav_indeo::indeo_register_all_decoders;
 use nihav_itu::itu_register_all_decoders;
 use nihav_llaudio::*;
+use nihav_mpeg::*;
 use nihav_ms::*;
 use nihav_qt::qt_register_all_decoders;
 use nihav_rad::*;
@@ -39,6 +40,7 @@ pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
     indeo_register_all_decoders(rd);
     itu_register_all_decoders(rd);
     llaudio_register_all_decoders(rd);
+    mpeg_register_all_decoders(rd);
     ms_register_all_decoders(rd);
     qt_register_all_decoders(rd);
     rad_register_all_decoders(rd);

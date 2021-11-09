@@ -13,6 +13,7 @@ nihav_game = { path = "../nihav-game" }
 nihav_indeo = { path = "../nihav-indeo" }
 nihav_itu = { path = "../nihav-itu" }
 nihav_llaudio = { path = "../nihav-llaudio" }
+nihav_mpeg = { path = "../nihav-mpeg" }
 nihav_ms = { path = "../nihav-ms" }
 nihav_qt = { path = "../nihav-qt" }
 nihav_rad = { path = "../nihav-rad" }
