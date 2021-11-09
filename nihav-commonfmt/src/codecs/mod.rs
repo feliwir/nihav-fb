@@ -15,10 +15,6 @@ mod rawvideo_ms;
 #[cfg(feature="decoder_zmbv")]
 mod zmbv;
 
-#[cfg(feature="decoder_aac")]
-#[allow(clippy::manual_memcpy)]
-#[allow(clippy::useless_let_if_seq)]
-mod aac;
 #[cfg(feature="decoder_atrac3")]
 #[allow(clippy::identity_op)]
 #[allow(clippy::useless_let_if_seq)]
@@ -59,8 +55,6 @@ const DECODERS: &[DecoderInfo] = &[
     DecoderInfo { name: "ac3", get_decoder: ts102366::get_decoder },
 #[cfg(feature="decoder_atrac3")]
     DecoderInfo { name: "atrac3", get_decoder: atrac3::get_decoder },
-#[cfg(feature="decoder_aac")]
-    DecoderInfo { name: "aac", get_decoder: aac::get_decoder },
 ];
 
 /// Registers all available codecs provided by this crate.
