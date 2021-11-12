@@ -272,6 +272,166 @@ pub fn get_decoder_mp3() -> Box<dyn NADecoder + Send> {
     Box::new(MPADecoder::new(2))
 }
 
+#[derive(Clone,Copy,Debug)]
+struct MPAHeader {
+    layer:      u8,
+    srate:      u32,
+    channels:   u8,
+    frame_size: usize,
+    nsamples:   usize,
+}
+
+impl PartialEq for MPAHeader {
+    fn eq(&self, other: &Self) -> bool {
+        self.layer == other.layer &&
+        self.srate == other.srate &&
+        self.channels == other.channels
+    }
+}
+
+#[derive(Default)]
+struct MPAPacketiser {
+    buf:        Vec<u8>,
+    hdr:        Option<MPAHeader>,
+}
+
+impl MPAPacketiser {
+    fn new() -> Self { Self::default() }
+    fn parse_header(&self, off: usize) -> DecoderResult<MPAHeader> {
+        if self.buf.len() < off + 4 { return Err(DecoderError::ShortData); }
+
+        let mut br = BitReader::new(&self.buf[off..], BitReaderMode::BE);
+
+        let syncword                = br.read(11)?;
+        validate!(syncword == 0x7FF);
+        let id                      = br.read(2)?;
+        validate!(id != 1);
+        let layer                   = (br.read(2)? ^ 3) as u8;
+        validate!(layer != 3);
+        let _protection             = br.read_bool()?;
+        let bitrate_index           = br.read(4)? as usize;
+        validate!(bitrate_index < 15);
+        if bitrate_index == 0 {
+            //todo freeform eventually
+            unimplemented!();
+        }
+        let mut sf_idx              = br.read(2)? as usize;
+        validate!(sf_idx != 3);
+        let padding                 = br.read_bool()?;
+        let _private                = br.read_bool()?;
+        let mode                    = br.read(2)? as u8;
+
+        match id {
+            0 => sf_idx += 6,
+            2 => sf_idx += 3,
+            _ => {},
+        };
+        let mpeg1 = id == 3;
+        let srate = SAMPLING_RATE[sf_idx];
+        let channels = if mode == 3 { 1 } else { 2 };
+        let bitrate = BITRATE[if mpeg1 { 0 } else { 1 }][layer as usize][bitrate_index];
+        let frame_size = match layer {
+                0 => {
+                    ((SAMPLES / 3 / 8 * 1000 * (bitrate as usize) / (srate as usize)) & !3) + if padding { 4 } else { 0 }
+                },
+                2 if !mpeg1 => {
+                    SAMPLES / 2 / 8 * 1000 * (bitrate as usize) / (srate as usize) + if padding { 1 } else { 0 }
+                },
+                _ => {
+                    SAMPLES / 8 * 1000 * (bitrate as usize) / (srate as usize) + if padding { 1 } else { 0 }
+                },
+            };
+        let nsamples = if mpeg1 { SAMPLES } else { SAMPLES / 2 };
+
+        Ok(MPAHeader{ layer, srate, channels, frame_size, nsamples })
+    }
+}
+
+impl NAPacketiser for MPAPacketiser {
+    fn add_data(&mut self, src: &[u8]) -> bool {
+        self.buf.extend_from_slice(src);
+        self.buf.len() < 4096
+    }
+    fn parse_stream(&mut self, id: u32) -> DecoderResult<NAStreamRef> {
+        if self.hdr.is_none() {
+            if self.buf.len() < 4 {
+                return Err(DecoderError::ShortData);
+            }
+            let hdr = self.parse_header(0)?;
+            self.hdr = Some(hdr);
+        }
+        let hdr = self.hdr.unwrap();
+        let ainfo = NAAudioInfo::new(hdr.srate, hdr.channels, SND_F32P_FORMAT, hdr.nsamples);
+        let info = NACodecInfo::new("mp3", NACodecTypeInfo::Audio(ainfo), None);
+        Ok(NAStream::new(StreamType::Audio, id, info, hdr.nsamples as u32, hdr.srate, 0).into_ref())
+    }
+    fn skip_junk(&mut self) -> DecoderResult<usize> {
+        if self.buf.len() <= 2 {
+            return Ok(0);
+        }
+        let mut off = 0;
+        let mut hdr = u16::from(self.buf[0]) * 256 + u16::from(self.buf[1]);
+        let mut iter = self.buf[2..].iter();
+        loop {
+            if (hdr & 0xFFE0) != 0xFFE0 {
+                let ret = self.parse_header(off);
+                match ret {
+                    Ok(hdr) => {
+                        if self.hdr.is_none() {
+                            self.hdr = Some(hdr);
+                        }
+                        if self.hdr.unwrap() != hdr { // header is valid but mismatches
+                            self.buf.drain(..off + 1);
+                            return Err(DecoderError::InvalidData);
+                        }
+                        break;
+                    },
+                    Err(err) => {
+                        self.buf.drain(..off + 1);
+                        return Err(err);
+                    },
+                };
+            }
+            off += 1;
+            if let Some(&b) = iter.next() {
+                hdr = (hdr << 8) | u16::from(b);
+            } else {
+                break;
+            }
+        }
+        self.buf.drain(..off);
+        Ok(off)
+    }
+    fn get_packet(&mut self, stream: NAStreamRef) -> DecoderResult<Option<NAPacket>> {
+        if self.buf.len() < 4 {
+            return Err(DecoderError::ShortData);
+        }
+        let hdr = self.parse_header(0)?;
+        if self.hdr.is_none() {
+            self.hdr = Some(hdr);
+        }
+        if self.hdr.unwrap() != hdr {
+            return Err(DecoderError::InvalidData);
+        }
+        if hdr.frame_size <= self.buf.len() {
+            let mut data = Vec::with_capacity(hdr.frame_size);
+            data.extend_from_slice(&self.buf[..hdr.frame_size]);
+            self.buf.drain(..hdr.frame_size);
+            let ts = NATimeInfo::new(None, None, Some(1), hdr.nsamples as u32, hdr.srate);
+            Ok(Some(NAPacket::new(stream, ts, true, data)))
+        } else {
+            Ok(None)
+        }
+    }
+    fn reset(&mut self) {
+        self.buf.clear();
+    }
+}
+
+pub fn get_packetiser() -> Box<dyn NAPacketiser + Send> {
+    Box::new(MPAPacketiser::new())
+}
+
 #[cfg(test)]
 mod test {
     use nihav_core::codecs::RegisteredDecoders;
@@ -279,6 +439,9 @@ mod test {
     use nihav_codec_support::test::dec_video::test_decode_audio;
     use crate::mpeg_register_all_decoders;
     use nihav_flash::flash_register_all_demuxers;
+    use std::io::Read;
+    use nihav_core::codecs::NAPacketiser;
+
     #[test]
     fn test_mpeg1_layer3_mono() {
         let mut dmx_reg = RegisteredDemuxers::new();
@@ -308,6 +471,23 @@ mod test {
 
         let file = "assets/Flash/lection2-2.flv";
         test_decode_audio("flv", file, Some(6000), None/*Some("mp3_3")*/, &dmx_reg, &dec_reg);
+    }
+    #[test]
+    fn test_mpa_packetiser() {
+        let mut buf = [0; 16384];
+        let mut file = std::fs::File::open("assets/MPEG/1.mp3").unwrap();
+
+        let mut pkts = super::MPAPacketiser::new();
+        file.read_exact(&mut buf).unwrap();
+        pkts.add_data(&buf);
+        let stream = pkts.parse_stream(0).unwrap();
+        let mut frame_sizes = Vec::with_capacity(15);
+        while let Some(pkt) = pkts.get_packet(stream.clone()).unwrap() {
+            let frame_size = pkt.get_buffer().len();
+            println!("pkt size {}", frame_size);
+            frame_sizes.push(frame_size);
+        }
+        assert_eq!(&frame_sizes, &[1044, 1044, 1045, 1045, 1045, 1045, 1045, 1045, 1045, 1045, 1045, 1044, 1045, 1045, 1045]);
     }
 }
 

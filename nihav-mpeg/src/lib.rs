@@ -8,3 +8,5 @@ mod codecs;
 
 #[cfg(feature="decoders")]
 pub use crate::codecs::mpeg_register_all_decoders;
+#[cfg(feature="decoders")]
+pub use crate::codecs::mpeg_register_all_packetisers;

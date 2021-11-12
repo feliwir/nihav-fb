@@ -25,3 +25,15 @@ pub fn mpeg_register_all_decoders(rd: &mut RegisteredDecoders) {
         rd.add_decoder(*decoder);
     }
 }
+
+const PACKETISERS: &[PacketiserInfo] = &[
+#[cfg(feature="decoder_mpa")]
+    PacketiserInfo { name: "mp3", get_packetiser: mpegaudio::get_packetiser },
+];
+
+/// Registers all available packetisers provided by this crate.
+pub fn mpeg_register_all_packetisers(rp: &mut RegisteredPacketisers) {
+    for packetiser in PACKETISERS.iter() {
+        rp.add_packetiser(*packetiser);
+    }
+}
