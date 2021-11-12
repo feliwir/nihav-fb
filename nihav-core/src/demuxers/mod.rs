@@ -500,3 +500,169 @@ impl RegisteredDemuxers {
         self.dmxs.iter()
     }
 }
+
+/// A trait for raw data demuxing operations.
+pub trait RawDemuxCore<'a>: NAOptionHandler {
+    /// Opens the input stream, reads required headers and prepares everything for packet demuxing.
+    fn open(&mut self, strmgr: &mut StreamManager, seek_idx: &mut SeekIndex) -> DemuxerResult<()>;
+    /// Reads a piece of raw data.
+    fn get_data(&mut self, strmgr: &mut StreamManager) -> DemuxerResult<NARawData>;
+    /// Seeks to the requested time.
+    fn seek(&mut self, time: NATimePoint, seek_idx: &SeekIndex) -> DemuxerResult<()>;
+    /// Returns container duration in milliseconds (zero if not available).
+    fn get_duration(&self) -> u64;
+}
+
+/// Demuxer structure with auxiliary data.
+pub struct RawDemuxer<'a> {
+    dmx:        Box<dyn RawDemuxCore<'a> + 'a>,
+    streams:    StreamManager,
+    seek_idx:   SeekIndex,
+}
+
+impl<'a> RawDemuxer<'a> {
+    /// Constructs a new `Demuxer` instance.
+    fn new(dmx: Box<dyn RawDemuxCore<'a> + 'a>, strmgr: StreamManager, seek_idx: SeekIndex) -> Self {
+        Self {
+            dmx,
+            streams:    strmgr,
+            seek_idx,
+        }
+    }
+    /// Returns a stream reference by its number.
+    pub fn get_stream(&self, idx: usize) -> Option<NAStreamRef> {
+        self.streams.get_stream(idx)
+    }
+    /// Returns a stream reference by its ID.
+    pub fn get_stream_by_id(&self, id: u32) -> Option<NAStreamRef> {
+        self.streams.get_stream_by_id(id)
+    }
+    /// Reports the total number of streams.
+    pub fn get_num_streams(&self) -> usize {
+        self.streams.get_num_streams()
+    }
+    /// Returns a reference to the internal stream manager.
+    pub fn get_stream_manager(&self) -> &StreamManager {
+        &self.streams
+    }
+    /// Returns an iterator over streams.
+    pub fn get_streams(&self) -> StreamIter {
+        self.streams.iter()
+    }
+    /// Returns 'ignored' marker for requested stream.
+    pub fn is_ignored_stream(&self, idx: usize) -> bool {
+        self.streams.is_ignored(idx)
+    }
+    /// Sets 'ignored' marker for requested stream.
+    pub fn set_ignored_stream(&mut self, idx: usize) {
+        self.streams.set_ignored(idx)
+    }
+    /// Clears 'ignored' marker for requested stream.
+    pub fn set_unignored_stream(&mut self, idx: usize) {
+        self.streams.set_unignored(idx)
+    }
+
+    /// Demuxes a new piece of data from the container.
+    pub fn get_data(&mut self) -> DemuxerResult<NARawData> {
+        loop {
+            let res = self.dmx.get_data(&mut self.streams);
+            if self.streams.no_ign || res.is_err() { return res; }
+            let res = res.unwrap();
+            let idx = res.get_stream().get_num();
+            if !self.is_ignored_stream(idx) {
+                return Ok(res);
+            }
+        }
+    }
+    /// Seeks to the requested time if possible.
+    pub fn seek(&mut self, time: NATimePoint) -> DemuxerResult<()> {
+        if self.seek_idx.skip_index {
+            return Err(DemuxerError::NotPossible);
+        }
+        self.dmx.seek(time, &self.seek_idx)
+    }
+    /// Returns internal seek index.
+    pub fn get_seek_index(&self) -> &SeekIndex {
+        &self.seek_idx
+    }
+    /// Returns media duration reported by container or its streams.
+    ///
+    /// Duration is in milliseconds and set to zero when it is not available.
+    pub fn get_duration(&self) -> u64 {
+        let duration = self.dmx.get_duration();
+        if duration != 0 {
+            return duration;
+        }
+        let mut duration = 0;
+        for stream in self.streams.iter() {
+            if stream.duration > 0 {
+                let dur = NATimeInfo::ts_to_time(stream.duration, 1000, stream.tb_num, stream.tb_den);
+                if duration < dur {
+                    duration = dur;
+                }
+            }
+        }
+        duration
+    }
+}
+
+impl<'a> NAOptionHandler for RawDemuxer<'a> {
+    fn get_supported_options(&self) -> &[NAOptionDefinition] {
+        self.dmx.get_supported_options()
+    }
+    fn set_options(&mut self, options: &[NAOption]) {
+        self.dmx.set_options(options);
+    }
+    fn query_option_value(&self, name: &str) -> Option<NAValue> {
+        self.dmx.query_option_value(name)
+    }
+}
+
+/// The trait for creating raw data demuxers.
+pub trait RawDemuxerCreator {
+    /// Creates new raw demuxer instance that will use `ByteReader` source as an input.
+    fn new_demuxer<'a>(&self, br: &'a mut ByteReader<'a>) -> Box<dyn RawDemuxCore<'a> + 'a>;
+    /// Tries to check whether the input can be demuxed with the demuxer.
+    fn check_format(&self, br: &mut ByteReader) -> bool;
+    /// Returns the name of current raw data demuxer creator (equal to the container name it can demux).
+    fn get_name(&self) -> &'static str;
+}
+
+/// Creates raw data demuxer for a provided bytestream.
+pub fn create_raw_demuxer<'a>(dmxcr: &dyn RawDemuxerCreator, br: &'a mut ByteReader<'a>) -> DemuxerResult<RawDemuxer<'a>> {
+    let mut dmx = dmxcr.new_demuxer(br);
+    let mut str = StreamManager::new();
+    let mut seek_idx = SeekIndex::new();
+    dmx.open(&mut str, &mut seek_idx)?;
+    Ok(RawDemuxer::new(dmx, str, seek_idx))
+}
+
+/// List of registered demuxers.
+#[derive(Default)]
+pub struct RegisteredRawDemuxers {
+    dmxs:   Vec<&'static dyn RawDemuxerCreator>,
+}
+
+impl RegisteredRawDemuxers {
+    /// Constructs a new `RegisteredDemuxers` instance.
+    pub fn new() -> Self {
+        Self { dmxs: Vec::new() }
+    }
+    /// Registers a new demuxer.
+    pub fn add_demuxer(&mut self, dmx: &'static dyn RawDemuxerCreator) {
+        self.dmxs.push(dmx);
+    }
+    /// Searches for a demuxer that supports requested container format.
+    pub fn find_demuxer(&self, name: &str) -> Option<&dyn RawDemuxerCreator> {
+        for &dmx in self.dmxs.iter() {
+            if dmx.get_name() == name {
+                return Some(dmx);
+            }
+        }
+        None
+    }
+    /// Provides an iterator over currently registered demuxers.
+    pub fn iter(&self) -> std::slice::Iter<&dyn RawDemuxerCreator> {
+        self.dmxs.iter()
+    }
+}

@@ -351,3 +351,69 @@ impl RegisteredEncoders {
     }
 }
 
+/// Trait for packetisers (objects that form full packets from raw stream data).
+pub trait NAPacketiser {
+    /// Queues new raw stream data for parsing.
+    ///
+    /// Returns false is the internal buffer grows too large.
+    fn add_data(&mut self, src: &[u8]) -> bool;
+    /// Tries to retrieve stream information from the data.
+    ///
+    /// Returns [`NAStream`] reference on success (with stream ID set to `id`), [`ShortData`] when there is not enough data to parse the headers and other errors in case there was an error parsing the data.
+    ///
+    /// [`NAStream`]: ../frame/struct.NAStream.html
+    /// [`ShortData`]: ./enum.DecoderError.html#variant.ShortData
+    fn parse_stream(&mut self, id: u32) -> DecoderResult<NAStreamRef>;
+    /// Tries to discard junk data until the first possible packet header.
+    ///
+    /// Returns the number of bytes skipped.
+    fn skip_junk(&mut self) -> DecoderResult<usize>;
+    /// Tries to form full packet from the already queued data.
+    ///
+    /// The function should be called repeatedly until it returns nothing or an error.
+    fn get_packet(&mut self, stream: NAStreamRef) -> DecoderResult<Option<NAPacket>>;
+    /// Resets the internal buffer.
+    fn reset(&mut self);
+}
+
+/// Decoder information used during creating a packetiser for requested codec.
+#[derive(Clone,Copy)]
+pub struct PacketiserInfo {
+    /// Short packetiser name.
+    pub name: &'static str,
+    /// The function that creates a packetiser instance.
+    pub get_packetiser: fn () -> Box<dyn NAPacketiser + Send>,
+}
+
+/// Structure for registering known packetisers.
+///
+/// It is supposed to be filled using `register_all_packetisers()` from some decoders crate and then it can be used to create packetisers for the requested codecs.
+#[derive(Default)]
+pub struct RegisteredPacketisers {
+    packs:  Vec<PacketiserInfo>,
+}
+
+impl RegisteredPacketisers {
+    /// Constructs a new instance of `RegisteredPacketisers`.
+    pub fn new() -> Self {
+        Self { packs: Vec::new() }
+    }
+    /// Adds another packetiser to the registry.
+    pub fn add_packetiser(&mut self, pack: PacketiserInfo) {
+        self.packs.push(pack);
+    }
+    /// Searches for the packetiser for the provided name and returns a function for creating it on success.
+    pub fn find_packetiser(&self, name: &str) -> Option<fn () -> Box<dyn NAPacketiser + Send>> {
+        for &pack in self.packs.iter() {
+            if pack.name == name {
+                return Some(pack.get_packetiser);
+            }
+        }
+        None
+    }
+    /// Provides an iterator over currently registered packetiser.
+    pub fn iter(&self) -> std::slice::Iter<PacketiserInfo> {
+        self.packs.iter()
+    }
+}
+

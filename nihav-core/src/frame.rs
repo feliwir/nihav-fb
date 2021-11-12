@@ -1444,6 +1444,37 @@ impl fmt::Display for NAPacket {
     }
 }
 
+/// Packet with a piece of data for a raw stream.
+pub struct NARawData {
+    stream:         NAStreamRef,
+    buffer:         NABufferRef<Vec<u8>>,
+}
+
+impl NARawData {
+    /// Constructs a new `NARawData` instance.
+    pub fn new(stream: NAStreamRef, vec: Vec<u8>) -> Self {
+        Self { stream, buffer: NABufferRef::new(vec) }
+    }
+    /// Constructs a new `NARawData` instance reusing a buffer reference.
+    pub fn new_from_refbuf(stream: NAStreamRef, buffer: NABufferRef<Vec<u8>>) -> Self {
+        Self { stream, buffer }
+    }
+    /// Returns information about the stream this data belongs to.
+    pub fn get_stream(&self) -> NAStreamRef { self.stream.clone() }
+    /// Returns a reference to packet data.
+    pub fn get_buffer(&self) -> NABufferRef<Vec<u8>> { self.buffer.clone() }
+    /// Assigns raw data to a new stream.
+    pub fn reassign(&mut self, stream: NAStreamRef) {
+        self.stream = stream;
+    }
+}
+
+impl fmt::Display for NARawData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[raw data for {} size {}]", self.stream, self.buffer.len())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
