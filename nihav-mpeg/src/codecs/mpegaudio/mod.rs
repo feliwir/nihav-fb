@@ -7,7 +7,7 @@ mod mp3code;
 use mp3code::*;
 
 const SAMPLES: usize = 1152;
-const BYTEBUF_SIZE: usize = 1024;
+const BYTEBUF_SIZE: usize = 2048;
 
 #[allow(clippy::large_enum_variant)]
 enum LayerData {
