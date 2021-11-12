@@ -600,8 +600,11 @@ impl<T: Read+Seek> ByteIO for FileReader<T> {
         if ret.is_err() { return Err(ByteIOError::ReadError); }
         let sz = ret.unwrap();
         if sz < buf.len() {
-            if let Err(_err) = self.file.read(&mut buf[sz..][..1]) {
+            if let Err(_err) = self.file.read_exact(&mut buf[sz..][..1]) {
                 self.eof = true;
+                if sz == 0 {
+                    return Err(ByteIOError::EOF);
+                }
             } else {
                 return Ok(sz + 1);
             }
