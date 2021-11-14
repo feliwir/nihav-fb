@@ -196,7 +196,7 @@ impl MDCTContext {
             let window = if flip { &self.win12f } else { &self.win12 };
             for j in 0..3 {
                 let tmp = &mut self.tmp[j * 12..];
-                dct12(&src[i + j * 6..], tmp);
+                dct12(&src[i + j..], tmp);
                 for (el, &w) in tmp.iter_mut().zip(window.iter()) {
                     *el *= w;
                 }
@@ -467,6 +467,9 @@ impl MP3Data {
                             gr.scalefac[cb]     = br.read(bits2)? as u8;
                         }
                     }
+                    for scf in gr.scalefac[MP3_BANDS..].iter_mut() {
+                        *scf = 0;
+                    }
                     for is in gr.istereo.iter_mut() {
                         *is = 7;
                     }
@@ -481,6 +484,9 @@ impl MP3Data {
                     }
                     for scf in gr.scalefac[pivot..][..18].iter_mut() {
                         *scf        = br.read(bits2)? as u8;
+                    }
+                    for scf in gr.scalefac[pivot + 18..].iter_mut() {
+                        *scf = 0;
                     }
                     for is in gr.istereo.iter_mut() {
                         *is = 7;
@@ -662,7 +668,7 @@ impl MP3Data {
                     let mut sb = if gr.switch_point { 3 } else { 0 };
                     let mut off = switch_off;
 
-                    while sb < MP3_BANDS_SHORT {
+                    while sb <= MP3_BANDS_SHORT {
                         let band_size = MP3_SFB_SHORT_SIZE[self.sf_idx][sb];
                         for win in 0..3 {
                             for i in 0..band_size {
@@ -773,21 +779,21 @@ const DCT12_4: f32 =  0.7933533402912348;
 const DCT12_5: f32 =  0.9914448613738103;
 
 fn dct12(src: &[f32], dst: &mut [f32]) {
-    let t0 = src[0] - src[3] - src[4];
-    let t1 = src[1] - src[2] - src[5];
+    let t0 = src[0] - src[9] - src[12];
+    let t1 = src[3] - src[6] - src[15];
 
     dst[ 4] = t0 * DCT12_1 - t1 * DCT12_0;
     dst[ 7] = t0 * DCT12_0 + t1 * DCT12_1;
     dst[ 1] = -dst[4];
-    dst[10] = -dst[7];
+    dst[10] =  dst[7];
 
-    let t0 = src[1] * DCT12_1 - src[4] * DCT12_0;
-    let t1 = src[1] * DCT12_0 + src[4] * DCT12_1;
+    let t0 = src[3] * DCT12_1 - src[12] * DCT12_0;
+    let t1 = src[3] * DCT12_0 + src[12] * DCT12_1;
 
-    dst[ 3] =  src[0] * DCT12_2 + src[2] * DCT12_3 + src[3] * DCT12_4 + src[5] * DCT12_5 - t0;
-    dst[ 5] =  src[0] * DCT12_3 - src[2] * DCT12_2 - src[3] * DCT12_5 + src[5] * DCT12_4 - t1;
-    dst[ 6] = -src[0] * DCT12_4 + src[2] * DCT12_5 - src[3] * DCT12_2 + src[5] * DCT12_3 - t0;
-    dst[ 8] = -src[0] * DCT12_5 - src[2] * DCT12_4 + src[3] * DCT12_3 + src[5] * DCT12_2 + t1;
+    dst[ 3] =  src[0] * DCT12_2 + src[6] * DCT12_3 + src[9] * DCT12_4 + src[15] * DCT12_5 - t0;
+    dst[ 5] =  src[0] * DCT12_3 - src[6] * DCT12_2 - src[9] * DCT12_5 + src[15] * DCT12_4 - t1;
+    dst[ 6] = -src[0] * DCT12_4 + src[6] * DCT12_5 - src[9] * DCT12_2 + src[15] * DCT12_3 - t0;
+    dst[ 8] = -src[0] * DCT12_5 - src[6] * DCT12_4 + src[9] * DCT12_3 + src[15] * DCT12_2 + t1;
     dst[ 2] = -dst[3];
     dst[ 0] = -dst[5];
     dst[11] =  dst[6];
