@@ -280,6 +280,7 @@ static CODEC_REGISTER: &[CodecDescription] = &[
     desc!(audio-ll;  "tta",          "True Audio codec"),
     desc!(audio-hyb; "wavpack",      "WavPack"),
 
+    desc!(video-im; "jpeg",          "JPEG"),
     desc!(video;    "h264",          "ITU H.264", CODEC_CAP_COMPLEX_REORDER | CODEC_CAP_HYBRID),
 ];
 
@@ -290,6 +291,8 @@ static AVI_VIDEO_CODEC_REGISTER: &[(&[u8;4], &str)] = &[
     (b"CRAM", "msvideo1"),
     (b"MSVC", "msvideo1"),
     (b"WHAM", "msvideo1"),
+
+    (b"MJPG", "jpeg"),
 
     (b"IF09", "indeo1"),
     (b"RT21", "indeo2"),
