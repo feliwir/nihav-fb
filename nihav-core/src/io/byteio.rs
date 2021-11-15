@@ -717,6 +717,12 @@ impl<T: Read+Seek> ByteIO for BoundedFileReader<T> {
     }
 
     fn read_buf(&mut self, buf: &mut [u8]) -> ByteIOResult<usize> {
+        if let Some(epos) = self.end {
+            if self.real_tell() >= epos {
+                self.eof = true;
+                return Err(ByteIOError::EOF);
+            }
+        }
         let len = self.max_read_len(buf.len());
         match self.file.read_exact(&mut buf[..len]) {
             Ok(()) if len == buf.len() => Ok(buf.len()),
@@ -736,6 +742,12 @@ impl<T: Read+Seek> ByteIO for BoundedFileReader<T> {
     }
 
     fn read_buf_some(&mut self, buf: &mut [u8]) -> ByteIOResult<usize> {
+        if let Some(epos) = self.end {
+            if self.real_tell() >= epos {
+                self.eof = true;
+                return Err(ByteIOError::EOF);
+            }
+        }
         let len = self.max_read_len(buf.len());
         let ret = self.file.read(&mut buf[..len]);
         if ret.is_err() { return Err(ByteIOError::ReadError); }
@@ -743,6 +755,9 @@ impl<T: Read+Seek> ByteIO for BoundedFileReader<T> {
         if sz < len {
             if let Err(_err) = self.file.read(&mut buf[sz..][..1]) {
                 self.eof = true;
+                if sz == 0 {
+                    return Err(ByteIOError::EOF);
+                }
             } else {
                 return Ok(sz + 1);
             }
