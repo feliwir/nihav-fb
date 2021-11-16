@@ -141,7 +141,7 @@ fn apply_lpc(dst: &mut [u32], src: &[i32], filter: &[i32], shift: u8) {
 }
 
 fn encode_residual(bw: &mut BitWriter, src: &[u32]) {
-    let sum = src.iter().fold(0, |acc, &x| acc + x) / (src.len() as u32);
+    let sum = src.iter().sum::<u32>() / (src.len() as u32);
 
     let k = (31 - sum.max(1).leading_zeros()) as u8;
     if k < 16 {
@@ -173,6 +173,7 @@ struct FLACEncoder {
     ifilter:    [i32; 32],
 }
 
+#[allow(clippy::match_overlapping_arm)]
 fn nsamples_code(nsamp: usize) -> u8 {
     match nsamp {
         192     => 1,
@@ -326,7 +327,7 @@ impl FLACEncoder {
                     bw.write(1, 6);
                     bw.write0(); // no wasted bits
                     for &el in samp.iter() {
-                        bw.write_s(i32::from(el), samp_bits);
+                        bw.write_s(el, samp_bits);
                     }
                 },
                 -1 | -2 | -3 | -4 => {
@@ -337,7 +338,7 @@ impl FLACEncoder {
                     bw.write(8 | (order as u32), 6);
                     bw.write0(); // no wasted bits
                     for &el in samp[..order].iter() {
-                        bw.write_s(i32::from(el), samp_bits);
+                        bw.write_s(el, samp_bits);
                     }
                     encode_residual(bw, &self.tmp[order..nsamples]);
                 },
@@ -373,7 +374,7 @@ impl FLACEncoder {
                     bw.write(0x20 | ((order - 1) as u32), 6);
                     bw.write0(); // no wasted bits
                     for &el in samp[..order].iter() {
-                        bw.write_s(i32::from(el), samp_bits);
+                        bw.write_s(el, samp_bits);
                     }
                     bw.write(filter_bits - 1, 4);
                     bw.write(filter_prec, 5);
