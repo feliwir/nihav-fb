@@ -41,6 +41,23 @@ struct PalInfo {
     stream_no:  usize,
 }
 
+#[derive(Clone,Copy,Default)]
+struct RIFFSegment {
+    pos:        u64,
+    size:       usize,
+    movi_pos:   u64,
+    movi_size:  usize,
+}
+
+impl RIFFSegment {
+    fn contains(&self, pos: u64) -> bool {
+        pos >= self.movi_pos && pos < self.movi_pos + (self.movi_size as u64)
+    }
+    fn get_end(&self) -> u64 {
+        self.pos + (self.size as u64)
+    }
+}
+
 #[allow(dead_code)]
 struct AVIDemuxer<'a> {
     src:            &'a mut ByteReader<'a>,
@@ -56,6 +73,9 @@ struct AVIDemuxer<'a> {
     strm_duration:  u32,
     key_offs:       Vec<u64>,
     pal:            Vec<PalInfo>,
+    odml:           bool,
+    odml_idx:       Vec<u64>,
+    odml_riff:      Vec<RIFFSegment>,
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -76,13 +96,23 @@ impl<'a> DemuxCore<'a> for AVIDemuxer<'a> {
     }
 
     fn get_frame(&mut self, strmgr: &mut StreamManager) -> DemuxerResult<NAPacket> {
-        if self.movi_size == 0 { return Err(EOF); }
+        if self.movi_size == 0 {
+            if !self.odml {
+                return Err(EOF);
+            }
+            self.try_next_odml_chunk()?;
+        }
         let mut tag: [u8; 4] = [0; 4];
         loop {
             if (self.src.tell() & 1) == 1 {
                 self.src.read_skip(1)?;
                 self.movi_size -= 1;
-                if self.movi_size == 0 { return Err(EOF); }
+                if self.movi_size == 0 {
+                    if !self.odml {
+                        return Err(EOF);
+                    }
+                    self.try_next_odml_chunk()?;
+                }
             }
             let is_keyframe = self.key_offs.binary_search(&self.src.tell()).is_ok();
             self.src.read_buf(&mut tag)?;
@@ -90,17 +120,32 @@ impl<'a> DemuxCore<'a> for AVIDemuxer<'a> {
             if mktag!(tag) == mktag!(b"JUNK") {
                 self.movi_size -= size + 8;
                 self.src.read_skip(size)?;
-                if self.movi_size == 0 { return Err(EOF); }
+                if self.movi_size == 0 {
+                    if !self.odml {
+                        return Err(EOF);
+                    }
+                    self.try_next_odml_chunk()?;
+                }
                 continue;
             }
             if mktag!(tag) == mktag!(b"LIST") {
                 self.movi_size -= 12;
                 self.src.read_skip(4)?;
-                if self.movi_size == 0 { return Err(EOF); }
+                if self.movi_size == 0 {
+                    if !self.odml {
+                        return Err(EOF);
+                    }
+                    self.try_next_odml_chunk()?;
+                }
                 continue;
             }
             if (tag[0] == b'i' && tag[1] == b'x') || (&tag == b"idx1") {
-                return Err(EOF);
+                if !self.odml {
+                    return Err(EOF);
+                }
+                self.src.read_skip(size)?;
+                self.try_next_odml_chunk()?;
+                continue;
             }
             if tag[0] < b'0' || tag[0] > b'9' || tag[1] < b'0' || tag[1] > b'9' {
                 return Err(InvalidData);
@@ -109,7 +154,12 @@ impl<'a> DemuxCore<'a> for AVIDemuxer<'a> {
             if tag[2] == b'p' && tag[3] == b'c' {
                 self.parse_palette_change(stream_no as usize, size)?;
                 self.movi_size -= size;
-                if self.movi_size == 0 { return Err(EOF); }
+                if self.movi_size == 0 {
+                    if !self.odml {
+                        return Err(EOF);
+                    }
+                    self.try_next_odml_chunk()?;
+                }
                 continue;
             }
             let str = strmgr.get_stream(stream_no as usize);
@@ -117,7 +167,12 @@ impl<'a> DemuxCore<'a> for AVIDemuxer<'a> {
             let stream = str.unwrap();
             if size == 0 {
                 self.movi_size -= 8;
-                if self.movi_size == 0 { return Err(EOF); }
+                if self.movi_size == 0 {
+                    if !self.odml {
+                        return Err(EOF);
+                    }
+                    self.try_next_odml_chunk()?;
+                }
                 continue;
             }
             let (tb_num, tb_den) = stream.get_timebase();
@@ -147,6 +202,36 @@ impl<'a> DemuxCore<'a> for AVIDemuxer<'a> {
         }
         let seek_info = ret.unwrap();
 
+        if self.odml && ((seek_info.pos < self.movi_pos) || (seek_info.pos > self.movi_pos + (self.movi_orig as u64))) {
+            let mut found = false;
+            for riff_seg in self.odml_riff.iter() {
+                if riff_seg.contains(seek_info.pos) {
+                    found = true;
+                    self.movi_pos = riff_seg.movi_pos;
+                    self.movi_orig = riff_seg.movi_size;
+                    self.movi_size = riff_seg.movi_size;
+                    break;
+                }
+            }
+            if !found {
+                let riff_seg = self.odml_riff.last().unwrap();
+                self.src.seek(SeekFrom::Start(riff_seg.get_end()))?;
+                loop {
+                    let ret = self.try_next_odml_chunk();
+                    if ret.is_err() {
+                        return Err(DemuxerError::SeekError);
+                    }
+                    let riff_seg = self.odml_riff.last().unwrap();
+                    if riff_seg.contains(seek_info.pos) {
+                        self.movi_pos = riff_seg.movi_pos;
+                        self.movi_orig = riff_seg.movi_size;
+                        self.movi_size = riff_seg.movi_size;
+                        break;
+                    }
+                    self.src.seek(SeekFrom::Start(riff_seg.get_end()))?;
+                }
+            }
+        }
         if seek_info.pos < self.movi_pos { return Err(DemuxerError::SeekError); }
         let skip_size = (seek_info.pos - self.movi_pos) as usize;
         if skip_size > self.movi_size { return Err(DemuxerError::SeekError); }
@@ -182,6 +267,9 @@ impl<'a> AVIDemuxer<'a> {
             strm_duration: 0,
             key_offs: Vec::new(),
             pal: Vec::new(),
+            odml: false,
+            odml_idx: Vec::new(),
+            odml_riff: Vec::with_capacity(1),
         }
     }
 
@@ -238,6 +326,7 @@ impl<'a> AVIDemuxer<'a> {
     fn read_header(&mut self, strmgr: &mut StreamManager, seek_idx: &mut SeekIndex) -> DemuxerResult<()> {
         let riff_tag = self.src.read_u32be()?;
         let size     = self.src.read_u32le()? as usize;
+        self.odml_riff.push(RIFFSegment { pos: self.src.tell() - 8, size: size + 8, movi_pos: 0, movi_size: 0});
         let avi_tag  = self.src.read_u32be()?;
         let mut matches = false;
         for rt in RIFF_TAGS.iter() {
@@ -257,21 +346,55 @@ impl<'a> AVIDemuxer<'a> {
                 self.movi_size = csz - 4;
                 self.movi_orig = self.movi_size;
                 self.movi_pos = self.src.tell();
+
+                self.odml_riff[0].movi_pos  = self.movi_pos;
+                self.odml_riff[0].movi_size = self.movi_size;
                 break;
             }
             rest_size -= csz;
         }
         if !seek_idx.skip_index {
-            self.src.read_skip(self.movi_size)?;
-            while rest_size > 0 {
-                let ret = self.parse_chunk(strmgr, RIFFTag::Chunk(mktag!(b"idx1")), rest_size,0);
-                if ret.is_err() { break; }
-                let (csz, end) = ret.unwrap();
-                if end {
-                    let _res = parse_idx1(&mut self.src, strmgr, seek_idx, csz, self.movi_pos, &mut self.key_offs);
-                    break;
+            if !self.odml {
+                self.src.read_skip(self.movi_size)?;
+                while rest_size > 0 {
+                    let ret = self.parse_chunk(strmgr, RIFFTag::Chunk(mktag!(b"idx1")), rest_size,0);
+                    if ret.is_err() { break; }
+                    let (csz, end) = ret.unwrap();
+                    if end {
+                        let _res = parse_idx1(&mut self.src, strmgr, seek_idx, csz, self.movi_pos, &mut self.key_offs);
+                        break;
+                    }
+                    rest_size -= csz;
                 }
-                rest_size -= csz;
+            } else {
+                let mut start = 0;
+                let mut last_strm_no = 255;
+                for &offset in self.odml_idx.iter() {
+                    if self.src.seek(SeekFrom::Start(offset)).is_err() {
+                        break;
+                    }
+                    let ret = self.src.read_tag();
+                    if ret.is_err() { break; }
+                    let tag = ret.unwrap();
+                    let ret = self.src.read_u32le();
+                    if ret.is_err() { break; }
+                    let size = ret.unwrap() as usize;
+                    if &tag[..2] != b"ix" || tag[2] < b'0' || tag[2] > b'9' || tag[3] < b'0' || tag[3] > b'9'{
+                        break;
+                    }
+                    let stream_no = ((tag[2] - b'0') * 10 + (tag[3] - b'0')) as usize;
+
+                    if last_strm_no != stream_no {
+                        start = 0;
+                        last_strm_no = stream_no;
+                    }
+                    let ret = parse_odml_ix(&mut self.src, strmgr, seek_idx, stream_no, size, start);
+                    if let Ok(new_start) = ret {
+                        start = new_start;
+                    } else {
+                        break;
+                    }
+                }
             }
         }
         if self.movi_pos != 0 {
@@ -316,6 +439,42 @@ impl<'a> AVIDemuxer<'a> {
         self.src.read_skip(size)?;
         Ok(())
     }
+    fn try_next_odml_chunk(&mut self) -> DemuxerResult<()> {
+        let last_seg = self.odml_riff.last().unwrap();
+        if self.src.tell() < last_seg.get_end() {
+            for riff_seg in self.odml_riff.iter() {
+                if riff_seg.pos >= self.src.tell() {
+                    self.src.seek(SeekFrom::Start(riff_seg.movi_pos))?;
+                    self.movi_pos = riff_seg.movi_pos;
+                    self.movi_size = riff_seg.movi_size;
+                    return Ok(());
+                }
+            }
+        }
+        self.src.seek(SeekFrom::Start(last_seg.get_end()))?;
+
+        let riff_pos = self.src.tell();
+        let ret = self.src.read_tag();
+        if let Ok([b'R', b'I', b'F', b'F']) = ret {
+        } else {
+            return Err(DemuxerError::EOF);
+        }
+        let riff_size = self.src.read_u32le()? as usize;
+        let tag = self.src.read_tag()?;
+        validate!(&tag == b"AVIX");
+        let tag = self.src.read_tag()?;
+        validate!(&tag == b"LIST");
+        let list_size = self.src.read_u32le()? as usize;
+        validate!(list_size >= 4);
+        let tag = self.src.read_tag()?;
+        validate!(&tag == b"movi");
+        self.odml_riff.push(RIFFSegment{ pos: riff_pos, size: riff_size + 8, movi_pos: riff_pos + 24, movi_size: list_size - 4});
+        self.movi_pos = riff_pos + 24;
+        self.movi_size = list_size - 4;
+        self.movi_orig = self.movi_size;
+
+        Ok(())
+    }
 }
 
 const RIFF_TAGS: &[[u32; 2]] = &[
@@ -324,14 +483,16 @@ const RIFF_TAGS: &[[u32; 2]] = &[
     [ mktag!(b"ON2 "), mktag!(b"ON2f") ],
 ];
 
-const CHUNKS: [RIFFParser; 7] = [
+const CHUNKS: &[RIFFParser] = &[
     RIFFParser { tag: RIFFTag::List(mktag!(b"LIST"), mktag!(b"hdrl")), parse: parse_hdrl },
     RIFFParser { tag: RIFFTag::List(mktag!(b"LIST"), mktag!(b"strl")), parse: parse_strl },
     RIFFParser { tag: RIFFTag::Chunk(mktag!(b"avih")), parse: parse_avih },
     RIFFParser { tag: RIFFTag::Chunk(mktag!(b"ON2h")), parse: parse_avih },
     RIFFParser { tag: RIFFTag::Chunk(mktag!(b"strf")), parse: parse_strf },
     RIFFParser { tag: RIFFTag::Chunk(mktag!(b"strh")), parse: parse_strh },
+    RIFFParser { tag: RIFFTag::Chunk(mktag!(b"indx")), parse: parse_indx },
     RIFFParser { tag: RIFFTag::Chunk(mktag!(b"JUNK")), parse: parse_junk },
+    RIFFParser { tag: RIFFTag::List(mktag!(b"LIST"), mktag!(b"odml")), parse: parse_odml },
 ];
 
 fn is_list_tag(tag: u32) -> bool {
@@ -352,6 +513,11 @@ fn parse_hdrl(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize) -> 
 
 #[allow(unused_variables)]
 fn parse_strl(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize) -> DemuxerResult<usize> {
+    Ok(0)
+}
+
+fn parse_odml(dmx: &mut AVIDemuxer, _strmgr: &mut StreamManager, _size: usize) -> DemuxerResult<usize> {
+    dmx.odml = true;
     Ok(0)
 }
 
@@ -563,6 +729,31 @@ fn parse_avih(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize) -> 
     Ok(size)
 }
 
+fn parse_indx(dmx: &mut AVIDemuxer, _strmgr: &mut StreamManager, size: usize) -> DemuxerResult<usize> {
+    dmx.odml = true;
+    validate!(size >= 24);
+    let entry_size = dmx.src.read_u16le()? as usize;
+    if entry_size != 4 {
+        dmx.src.read_skip(size - 2)?;
+        return Ok(size);
+    }
+    let sub_type = dmx.src.read_byte()?;
+    let idx_type = dmx.src.read_byte()?;
+    validate!(sub_type == 0 && idx_type == 0);
+    let entries = dmx.src.read_u32le()? as usize;
+    validate!(size >= 24 + entries * 4 * entry_size);
+    dmx.src.read_tag()?; //chunk id
+    dmx.src.read_skip(12)?; // reserved
+    for _ in 0..entries {
+        let offset = dmx.src.read_u64le()?;
+        let _idx_len = dmx.src.read_u32le()?;
+        let _nframes = dmx.src.read_u32le()?;
+        dmx.odml_idx.push(offset);
+    }
+    dmx.src.read_skip(size - 24 - entries * 4 * entry_size)?;
+    Ok(size)
+}
+
 #[allow(unused_variables)]
 fn parse_junk(dmx: &mut AVIDemuxer, strmgr: &mut StreamManager, size: usize) -> DemuxerResult<usize> {
     dmx.src.read_skip(size)?;
@@ -611,6 +802,43 @@ fn parse_idx1(src: &mut ByteReader, strmgr: &mut StreamManager, seek_idx: &mut S
     }
     key_offs.sort_unstable();
     Ok(size)
+}
+
+fn parse_odml_ix(src: &mut ByteReader, strmgr: &mut StreamManager, seek_idx: &mut SeekIndex, stream_no: usize, size: usize, start: u64) -> DemuxerResult<u64> {
+    validate!(size >= 24);
+    let entry_size = src.read_u16le()? as usize;
+    if entry_size != 2 {
+        return Err(DemuxerError::NotImplemented);
+    }
+    let sub_type = src.read_byte()?;
+    let idx_type = src.read_byte()?;
+    validate!(sub_type == 0 && idx_type == 1);
+    let entries = src.read_u32le()? as usize;
+    validate!(size == 24 + entries * 4 * entry_size);
+    src.read_tag()?; //chunk id
+    let base_offset = src.read_u64le()?;
+    src.read_u32le()?; //reserved
+    if let Some(stream) = strmgr.get_stream(stream_no) {
+        if stream.get_media_type() == StreamType::Video {
+            let (tb_num, tb_den) = stream.get_timebase();
+
+            for i in 0..entries {
+                let offset = src.read_u32le()?;
+                validate!(offset >= 8);
+                let _size  = src.read_u32le()?;
+
+                let pts = start + (i as u64);
+                let time = NATimeInfo::ts_to_time(pts, 1000, tb_num, tb_den);
+                seek_idx.add_entry(stream_no as u32, SeekEntry { time, pts, pos: base_offset + u64::from(offset - 8) });
+            }
+
+            Ok(start + (entries as u64))
+        } else {
+            Ok(0)
+        }
+    } else {
+        Ok(0)
+    }
 }
 
 pub struct AVIDemuxerCreator { }
