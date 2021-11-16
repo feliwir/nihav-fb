@@ -38,6 +38,18 @@ pub fn llaudio_register_all_decoders(rd: &mut RegisteredDecoders) {
     }
 }
 
+const LL_PACKETISERS: &[PacketiserInfo] = &[
+#[cfg(feature="decoder_flac")]
+    PacketiserInfo { name: "flac", get_packetiser: flac::get_packetiser },
+];
+
+/// Registers all available packetisers provided by this crate.
+pub fn llaudio_register_all_packetisers(rp: &mut RegisteredPacketisers) {
+    for pkt in LL_PACKETISERS.iter() {
+        rp.add_packetiser(*pkt);
+    }
+}
+
 #[cfg(feature="encoder_flac")]
 pub mod flacenc;
 

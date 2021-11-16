@@ -429,10 +429,209 @@ pub fn get_decoder() -> Box<dyn NADecoder + Send> {
     Box::new(FlacDecoder::new())
 }
 
+#[derive(Clone,Copy,Default)]
+struct FrameHeader {
+    blocksize:      u32,
+    srate:          u32,
+    channels:       u8,
+    bits:           u8,
+    time:           u64,
+    blk_strat:      bool,
+}
+
+#[derive(Default)]
+struct FLACPacketiser {
+    hdr:        FrameHeader,
+    buf:        Vec<u8>,
+    ref_crc:    u16,
+    cur_crc:    u16,
+    end:        usize,
+    hdr_ok:     bool,
+}
+
+fn read_utf8(br: &mut BitReader) -> DecoderResult<u64> {
+    let byte                    = br.read(8)? as u8;
+    let len = (!byte).leading_zeros();
+    if (len == 1) || (len > 5) {
+        return Err(DecoderError::InvalidData);
+    }
+    if len > 1 {
+        let mut val = u64::from(byte << len >> len);
+        for _ in 1..len {
+            let byte            = br.read(8)?;
+            if (byte & 0xC0) != 0x80 {
+                return Err(DecoderError::InvalidData);
+            }
+            val = (val << 6) | u64::from(byte & 0x3F);
+        }
+        Ok(val)
+    } else {
+        Ok(u64::from(byte))
+    }
+}
+
+impl FLACPacketiser {
+    fn new() -> Self { Self::default() }
+    fn parse_header(&self) -> DecoderResult<FrameHeader> {
+        if self.buf.len() < 5 {
+            return Err(DecoderError::ShortData);
+        }
+        let mut br = BitReader::new(&self.buf, BitReaderMode::BE);
+        let sync_code                   = br.read(14)?;
+        if sync_code != 0x3FFE {
+            return Err(DecoderError::InvalidData);
+        }
+        let marker                      = br.read(1)?;
+        if marker != 0 {
+            return Err(DecoderError::InvalidData);
+        }
+        let blk_strat                   = br.read_bool()?;
+        let bsize                       = br.read(4)?;
+        let srate_idx                   = br.read(4)? as u8;
+        let chan_idx                    = br.read(4)? as u8;
+        let bits = match br.read(3)? {
+                0 => 0,
+                1 => 8,
+                2 => 12,
+                4 => 16,
+                5 => 20,
+                6 => 24,
+                _ => return Err(DecoderError::InvalidData),
+            };
+        let marker                      = br.read(1)?;
+        if marker != 0 {
+            return Err(DecoderError::InvalidData);
+        }
+
+        let time = read_utf8(&mut br)?;
+
+        let blocksize = match bsize {
+                1 => 192,
+                2..=5 => 576 << (bsize - 2),
+                6 => br.read(8)? + 1,
+                7 => br.read(16)? + 1,
+                8..=15 => 256 << (bsize - 8),
+                _ => return Err(DecoderError::InvalidData),
+            };
+        let srate = match srate_idx {
+                0 => 0,
+                1 => 88200,
+                2 => 176400,
+                3 => 192000,
+                4 => 8000,
+                5 => 16000,
+                6 => 22050,
+                7 => 24000,
+                8 => 32000,
+                9 => 44100,
+                10 => 48000,
+                11 => 96000,
+                12 => br.read(8)? * 1000,
+                13 => br.read(16)?,
+                14 => br.read(16)? * 10,
+                _ => return Err(DecoderError::InvalidData),
+            };
+        let channels = match chan_idx {
+                0..=7 => chan_idx + 1,
+                8 | 9 | 10 => 2,
+                _ => return Err(DecoderError::InvalidData),
+            };
+
+        let hdr_size = br.tell() / 8;
+        let ref_crc                     = br.read(8)? as u8;
+        let mut crc = 0;
+        for &b in self.buf[..hdr_size].iter() {
+            crc = update_crc8(crc, b);
+        }
+        if crc != ref_crc {
+            return Err(DecoderError::ChecksumError);
+        }
+
+        Ok(FrameHeader{ blk_strat, time, srate, channels, bits, blocksize })
+    }
+}
+
+impl NAPacketiser for FLACPacketiser {
+    fn add_data(&mut self, src: &[u8]) -> bool {
+        self.buf.extend_from_slice(src);
+        self.buf.len() < 4096
+    }
+    fn parse_stream(&mut self, id: u32) -> DecoderResult<NAStreamRef> {
+        let hdr = self.parse_header()?;
+        let ainfo = NAAudioInfo::new(hdr.srate, hdr.channels, if hdr.bits <= 16 { SND_S16P_FORMAT } else { SND_S32P_FORMAT }, hdr.blocksize as usize);
+        let info = NACodecInfo::new("flac", NACodecTypeInfo::Audio(ainfo), None);
+        Ok(NAStream::new(StreamType::Audio, id, info, 1, hdr.srate, 0).into_ref())
+    }
+    fn skip_junk(&mut self) -> DecoderResult<usize> {
+        Err(DecoderError::NotImplemented)
+    }
+    fn get_packet(&mut self, stream: NAStreamRef) -> DecoderResult<Option<NAPacket>> {
+        if self.end == self.buf.len() || self.buf.len() < 5 {
+            return Err(DecoderError::ShortData);
+        }
+        if !self.hdr_ok {
+            self.hdr = self.parse_header()?;
+            self.hdr_ok = true;
+            self.cur_crc = 0;
+            for i in 0..5 {
+                self.cur_crc = update_crc16(self.cur_crc, self.buf[i]);
+            }
+            self.end = 5;
+        }
+        while self.end < self.buf.len() {
+            let b = self.buf[self.end];
+            self.end += 1;
+            match self.end {
+                0..=5 => unreachable!(),
+                6 => self.ref_crc = u16::from(b),
+                7 => self.ref_crc = (self.ref_crc << 8) | u16::from(b),
+                _ => {
+                    let bbb = (self.ref_crc >> 8) as u8;
+                    self.ref_crc = (self.ref_crc << 8) | u16::from(b);
+                    self.cur_crc = update_crc16(self.cur_crc, bbb);
+                    let mut found = self.ref_crc == self.cur_crc;
+                    if self.end + 2 < self.buf.len() {
+                        let b1 = self.buf[self.end];
+                        let b2 = self.buf[self.end + 1];
+                        if b1 != 0xFF || (b2 & 0xFC) != 0xF8 {
+                            found = false;
+                        }
+                    }
+                    if found {
+                        let mut data = Vec::with_capacity(self.end);
+                        data.extend_from_slice(&self.buf[..self.end]);
+                        self.buf.drain(..self.end);
+                        let mut ts = NATimeInfo::new(None, None, Some(u64::from(self.hdr.blocksize)), 1, self.hdr.srate);
+                        ts.pts = if self.hdr.blk_strat {
+                                Some(self.hdr.time)
+                            } else {
+                                Some(self.hdr.time * u64::from(self.hdr.blocksize))
+                            };
+                        self.end = 0;
+                        self.hdr_ok = false;
+
+                        return Ok(Some(NAPacket::new(stream, ts, true, data)));
+                    }
+                },
+            }
+        }
+        Ok(None)
+    }
+    fn reset(&mut self) {
+        self.buf.clear();
+        self.end = 0;
+        self.hdr_ok = false;
+    }
+}
+
+pub fn get_packetiser() -> Box<dyn NAPacketiser + Send> {
+    Box::new(FLACPacketiser::new())
+}
+
 #[cfg(test)]
 mod test {
-    use nihav_core::codecs::RegisteredDecoders;
-    use nihav_core::demuxers::RegisteredDemuxers;
+    use nihav_core::codecs::*;
+    use nihav_core::demuxers::*;
     use nihav_codec_support::test::dec_video::*;
     use crate::llaudio_register_all_decoders;
     use crate::llaudio_register_all_demuxers;
@@ -445,6 +644,90 @@ mod test {
 
         test_decoding("flac", "flac", "assets/LLaudio/luckynight.flac", Some(6), &dmx_reg, &dec_reg,
                       ExpectedTestResult::MD5([0xe689787a, 0x032a98f7, 0xeb6e64f4, 0xfa652132]));
+    }
+    use std::io::{Read, Seek, SeekFrom};
+    #[test]
+    fn test_flac_packetiser() {
+        let mut dmx_reg = RegisteredDemuxers::new();
+        llaudio_register_all_demuxers(&mut dmx_reg);
+        let dmx_f = dmx_reg.find_demuxer("flac").unwrap();
+        let mut file = std::fs::File::open("assets/LLaudio/luckynight.flac").unwrap();
+        let mut fr = FileReader::new_read(&mut file);
+        let mut br = ByteReader::new(&mut fr);
+        let mut dmx = create_demuxer(dmx_f, &mut br).unwrap();
+
+        let mut pkt_sizes = Vec::new();
+        while let Ok(pkt) = dmx.get_frame() {
+            pkt_sizes.push(pkt.get_buffer().len());
+        }
+
+        let mut file = std::fs::File::open("assets/LLaudio/luckynight.flac").unwrap();
+        file.seek(SeekFrom::Start(0x115E)).unwrap();
+
+        let mut pkts = super::FLACPacketiser::new();
+        let mut buf = [0; 8192];
+        for _ in 0..16 {
+            file.read_exact(&mut buf).unwrap();
+            pkts.add_data(&buf);
+        }
+        let stream = pkts.parse_stream(0).unwrap();
+        let mut pkt_sizes2 = Vec::new();
+        let mut piter = pkt_sizes.iter();
+        loop {
+            let res = pkts.get_packet(stream.clone());
+            match res {
+                Ok(Some(pkt)) => {
+                    assert_eq!(*piter.next().unwrap(), pkt.get_buffer().len());
+                    pkt_sizes2.push(pkt.get_buffer().len());
+                    continue;
+                },
+                Ok(None) | Err(DecoderError::ShortData) => {},
+                Err(err) => {
+                    println!("error {:?}", err);
+                    panic!("packetising error");
+                },
+            };
+            let ret = file.read(&mut buf);
+            match ret {
+                Ok(0) => {
+                    let res = pkts.get_packet(stream.clone());
+                    match res {
+                        Ok(Some(pkt)) => {
+                            assert_eq!(*piter.next().unwrap(), pkt.get_buffer().len());
+                            pkt_sizes2.push(pkt.get_buffer().len());
+                            continue;
+                        },
+                        Ok(None) | Err(DecoderError::ShortData) => break,
+                        Err(err) => {
+                            println!("error {:?}", err);
+                            panic!("packetising error");
+                        },
+                    };
+                },
+                Ok(size) => pkts.add_data(&buf[..size]),
+                Err(err) => {
+                    if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                        let res = pkts.get_packet(stream.clone());
+                        match res {
+                            Ok(Some(pkt)) => {
+                                assert_eq!(*piter.next().unwrap(), pkt.get_buffer().len());
+                                pkt_sizes2.push(pkt.get_buffer().len());
+                                continue;
+                            },
+                            Ok(None) | Err(DecoderError::ShortData) => break,
+                            Err(err) => {
+                                println!("error {:?}", err);
+                                panic!("packetising error");
+                            },
+                        };
+                    } else {
+                        println!(" {:?}", err.kind());
+                        panic!("i/o error!");
+                    }
+                },
+            };
+        }
+        assert_eq!(pkt_sizes.len(), pkt_sizes2.len());
     }
 }
 

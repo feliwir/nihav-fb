@@ -16,6 +16,7 @@ use nihav_core::codecs::RegisteredDecoders;
 use nihav_core::codecs::RegisteredPacketisers;
 use nihav_core::codecs::RegisteredEncoders;
 use nihav_core::demuxers::RegisteredDemuxers;
+use nihav_core::demuxers::RegisteredRawDemuxers;
 use nihav_core::muxers::RegisteredMuxers;
 
 use nihav_commonfmt::*;
@@ -51,6 +52,7 @@ pub fn nihav_register_all_decoders(rd: &mut RegisteredDecoders) {
 
 /// Registers all known packetisers.
 pub fn nihav_register_all_packetisers(rp: &mut RegisteredPacketisers) {
+    llaudio_register_all_packetisers(rp);
     mpeg_register_all_packetisers(rp);
 }
 
@@ -64,6 +66,11 @@ pub fn nihav_register_all_demuxers(rd: &mut RegisteredDemuxers) {
     rad_register_all_demuxers(rd);
     realmedia_register_all_demuxers(rd);
     vivo_register_all_demuxers(rd);
+}
+
+/// Registers all known raw stream demuxers.
+pub fn nihav_register_all_raw_demuxers(rd: &mut RegisteredRawDemuxers) {
+    llaudio_register_all_raw_demuxers(rd);
 }
 
 /// Registers all known encoders.

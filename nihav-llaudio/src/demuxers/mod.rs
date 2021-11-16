@@ -9,6 +9,8 @@ macro_rules! validate {
 mod ape;
 #[cfg(feature="demuxer_flac")]
 mod flac;
+#[cfg(feature="demuxer_flac")]
+mod flacraw;
 #[cfg(feature="demuxer_tta")]
 mod tta;
 #[cfg(feature="demuxer_wavpack")]
@@ -28,6 +30,18 @@ const LL_AUDIO_DEMUXERS: &[&dyn DemuxerCreator] = &[
 /// Registers all available demuxers provided by this crate.
 pub fn llaudio_register_all_demuxers(rd: &mut RegisteredDemuxers) {
     for demuxer in LL_AUDIO_DEMUXERS.iter() {
+        rd.add_demuxer(*demuxer);
+    }
+}
+
+const LL_RAW_AUDIO_DEMUXERS: &[&dyn RawDemuxerCreator] = &[
+#[cfg(feature="demuxer_flac")]
+    &flacraw::FLACDemuxerCreator {},
+];
+
+/// Registers all available raw stream demuxers provided by this crate.
+pub fn llaudio_register_all_raw_demuxers(rd: &mut RegisteredRawDemuxers) {
+    for demuxer in LL_RAW_AUDIO_DEMUXERS.iter() {
         rd.add_demuxer(*demuxer);
     }
 }
