@@ -20,7 +20,7 @@ impl<'a> DemuxCore<'a> for Y4MDemuxer<'a> {
         let vhdr = NAVideoInfo::new(self.width, self.height, false, format);
         let vci = NACodecTypeInfo::Video(vhdr);
         let vinfo = NACodecInfo::new("rawvideo", vci, None);
-        if let None = strmgr.add_stream(NAStream::new(StreamType::Video, 0, vinfo, self.fps_num, self.fps_den, 0)) {
+        if strmgr.add_stream(NAStream::new(StreamType::Video, 0, vinfo, self.fps_num, self.fps_den, 0)).is_none() {
             return Err(DemuxerError::MemoryError);
         }
 

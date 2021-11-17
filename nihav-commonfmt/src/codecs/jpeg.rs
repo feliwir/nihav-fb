@@ -63,6 +63,7 @@ fn idct_row(row: &mut [i16]) {
 }
 
 #[allow(clippy::erasing_op)]
+#[allow(clippy::identity_op)]
 fn idct_col(blk: &mut [i16; 64], off: usize) {
     let in0 = ((i32::from(blk[off + 0*8])) << 8) + (1 << (COL_SHIFT - 1));
     let in1 =  (i32::from(blk[off + 4*8])) << 8;
@@ -236,6 +237,7 @@ impl JPEGDecoder {
         self.depth      = 0;
     }
 
+    #[allow(clippy::many_single_char_names)]
     fn parse_sof(&mut self, br: &mut ByteReader) -> DecoderResult<NABufferType> {
         validate!(self.width == 0);
 

@@ -50,7 +50,7 @@ impl NADecoder for RawDecoder {
 
                         let sstride = (vinfo.width + 3) & !3;
 
-                        let buf = alloc_video_buffer(vinfo.clone(), 0)?;
+                        let buf = alloc_video_buffer(*vinfo, 0)?;
 
                         let mut frm = buf.get_vbuf().unwrap();
                         let dstride = frm.get_stride(0);
@@ -66,7 +66,7 @@ impl NADecoder for RawDecoder {
                     15 | 16 => {
                         let sstride = (vinfo.width * 2 + 3) & !3;
 
-                        let buf = alloc_video_buffer(vinfo.clone(), 0)?;
+                        let buf = alloc_video_buffer(*vinfo, 0)?;
 
                         let mut frm = buf.get_vbuf16().unwrap();
                         let dstride = frm.get_stride(0);
@@ -86,7 +86,7 @@ impl NADecoder for RawDecoder {
                         let offs    = vec![0; ncomp];
                         let mut strides = vec![0; ncomp];
                         strides[0] = sstride;
-                         NABufferType::VideoPacked(NAVideoBuffer::from_raw_parts(vinfo.clone(), src.clone(), offs, strides).into_ref())
+                         NABufferType::VideoPacked(NAVideoBuffer::from_raw_parts(*vinfo, src, offs, strides).into_ref())
                     },
                     _ => return Err(DecoderError::NotImplemented),
                 };

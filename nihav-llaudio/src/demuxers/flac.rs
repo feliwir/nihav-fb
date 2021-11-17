@@ -89,7 +89,7 @@ impl<'a> FLACDemuxer<'a> {
                         1 => 192,
                         2..=5 => 576 << (bsz_id - 2),
                         6 => {
-                            validate!(idx + 1 <= buf.len());
+                            validate!(idx < buf.len());
                             u64::from(buf[idx]) + 1
                         },
                         7 => {
