@@ -52,36 +52,47 @@ macro_rules! mc_filter {
 }
 
 //#[allow(snake_case)]
-pub fn mc_bilinear(dst: &mut [u8], dstride: usize, src: &[u8], mut soff: usize, sstride: usize, mx: u16, my: u16) {
+pub fn mc_bilinear<const SOFF: usize, const SSTRIDE: usize>(dst: &mut [u8], dstride: usize, src: &[u8], mx: u16, my: u16) {
+    let mut soff = SOFF;
+    assert!(dstride >= 8);
+        
     if my == 0 {
-        for dline in dst.chunks_mut(dstride).take(8) {
+        assert!(src.len() >= soff + SSTRIDE * 8);
+        for dline in dst.chunks_exact_mut(dstride).take(8) {
             for i in 0..8 {
                 dline[i] = mc_filter!(bilinear; src[soff + i], src[soff + i + 1], mx);
             }
-            soff += sstride;
+            soff += SSTRIDE;
         }
     } else if mx == 0 {
-        for dline in dst.chunks_mut(dstride).take(8) {
+        assert!(src.len() >= soff + SSTRIDE*8);
+        for dline in dst.chunks_exact_mut(dstride).take(8) {
             for i in 0..8 {
-                dline[i] = mc_filter!(bilinear; src[soff + i], src[soff + i + sstride], my);
+                dline[i] = mc_filter!(bilinear; src[soff + i], src[soff + i + SSTRIDE], my);
             }
-            soff += sstride;
+            soff += SSTRIDE;
         }
     } else {
         let mut tmp = [0u8; 8];
         for i in 0..8 {
             tmp[i] = mc_filter!(bilinear; src[soff + i], src[soff + i + 1], mx);
         }
-        soff += sstride;
-        for dline in dst.chunks_mut(dstride).take(8) {
+        soff += SSTRIDE;
+        
+        assert!(src.len() >= soff + SSTRIDE*8);
+        for dline in dst.chunks_exact_mut(dstride).take(8) {
             for i in 0..8 {
                 let cur = mc_filter!(bilinear; src[soff + i], src[soff + i + 1], mx);
                 dline[i] = mc_filter!(bilinear; tmp[i], cur, my);
                 tmp[i] = cur;
             }
-            soff += sstride;
+            soff += SSTRIDE;
         }
     }
+}
+
+pub fn mc_bilinear16(dst: &mut [u8], dstride: usize, src: &[u8], mx: u16, my: u16) {
+    mc_bilinear::<{16 * 2 + 2}, 16>(dst, dstride, src, mx, my)
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]

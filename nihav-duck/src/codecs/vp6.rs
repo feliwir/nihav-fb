@@ -351,7 +351,7 @@ impl VP56Parser for VP6BR {
             let coeff_v = &VP6_BICUBIC_COEFFS[self.filter_alpha][my as usize];
             mc_bicubic(dbuf, dstride, tmp_blk, 16 * 2 + 2, 16, coeff_h, coeff_v);
         } else {
-            mc_bilinear(dbuf, dstride, tmp_blk, 16 * 2 + 2, 16, mx as u16, my as u16);
+            mc_bilinear16(dbuf, dstride, tmp_blk, mx as u16, my as u16);
         }
     }
 }

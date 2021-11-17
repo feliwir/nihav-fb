@@ -453,7 +453,7 @@ count2: 0,
             let coeff_v = &VP6_BICUBIC_COEFFS[self.filter_alpha][my as usize];
             mc_bicubic(dst, 8, tmp_blk, 16 * 2 + 2, 16, coeff_h, coeff_v);
         } else {
-            mc_bilinear(dst, 8, tmp_blk, 16 * 2 + 2, 16, mx as u16, my as u16);
+            mc_bilinear16(dst, 8, tmp_blk, mx as u16, my as u16);
         }
     }
     fn sad_mb(&mut self, cur_blk: &[[u8; 64]; 6], mb_x: usize, mb_y: usize, cur_mv: MV, best_dist: u32) -> u32 {
