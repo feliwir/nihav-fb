@@ -53,6 +53,7 @@ const C5S3: i32 = 36410;
 const C6S2: i32 = 25080;
 const C7S1: i32 = 12785;
 
+#[inline]
 fn mul16(a: i32, b: i32) -> i32 {
     let res = a * b;
     (res + if res < 0 { 0xFFFF } else { 0 }) >> 16
@@ -94,7 +95,8 @@ macro_rules! fdct_step {
 
 #[allow(clippy::erasing_op)]
 pub fn vp_fdct(blk: &mut [i16; 64]) {
-    for row in blk.chunks_mut(8) {
+    for i in 0..8 {
+        let row = &mut blk[(i * 8)..(i * 8) + 8];
         fdct_step!(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7],
                    row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]);
     }
@@ -443,7 +445,7 @@ count2: 0,
         let dst = &mut self.ref_blk[dst_idx];
         if copy_mode {
             let src = &tmp_blk[2 * 16 + 2..];
-            for (dline, sline) in dst.chunks_mut(8).zip(src.chunks(16)).take(8) {
+            for (dline, sline) in dst.chunks_exact_mut(8).zip(src.chunks(16)).take(8) {
                 dline.copy_from_slice(&sline[..8]);
             }
         } else if bicubic {

@@ -218,6 +218,7 @@ const C5S3: i32 = 36410;
 const C6S2: i32 = 25080;
 const C7S1: i32 = 12785;
 
+#[inline]
 fn mul16(a: i32, b: i32) -> i32 {
     (a * b) >> 16
 }
@@ -258,7 +259,7 @@ macro_rules! idct_step {
 
 pub fn vp_idct(coeffs: &mut [i16; 64]) {
     let mut tmp = [0i32; 64];
-    for (src, dst) in coeffs.chunks(8).zip(tmp.chunks_mut(8)) {
+    for (src, dst) in coeffs.chunks(8).zip(tmp.chunks_exact_mut(8)) {
         idct_step!(src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
                    dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], dst[6], dst[7], 0, 0, i32);
     }
