@@ -37,6 +37,7 @@ impl Predictor {
     }
 }
 
+#[cfg(feature="decoder_ms_adpcm")]
 struct MSADPCMDecoder {
     ainfo:          NAAudioInfo,
     chmap:          NAChannelMap,
@@ -45,6 +46,7 @@ struct MSADPCMDecoder {
     block_samps:    usize,
 }
 
+#[cfg(feature="decoder_ms_adpcm")]
 impl MSADPCMDecoder {
     fn new() -> Self {
         Self {
@@ -57,6 +59,7 @@ impl MSADPCMDecoder {
     }
 }
 
+#[cfg(feature="decoder_ms_adpcm")]
 impl NADecoder for MSADPCMDecoder {
     #[allow(clippy::int_plus_one)]
     fn init(&mut self, _supp: &mut NADecoderSupport, info: NACodecInfoRef) -> DecoderResult<()> {
@@ -162,17 +165,20 @@ impl NADecoder for MSADPCMDecoder {
     }
 }
 
+#[cfg(feature="decoder_ms_adpcm")]
 impl NAOptionHandler for MSADPCMDecoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="decoder_ms_adpcm")]
 pub fn get_decoder() -> Box<dyn NADecoder + Send> {
     Box::new(MSADPCMDecoder::new())
 }
 
 #[derive(Default)]
+#[cfg(feature="encoder_ms_adpcm")]
 struct MSADPCMEncoder {
     stream:     Option<NAStreamRef>,
     samples:    Vec<i16>,
@@ -182,8 +188,10 @@ struct MSADPCMEncoder {
     srate:      u32,
 }
 
+#[cfg(feature="encoder_ms_adpcm")]
 const DEFAULT_BLOCK_LEN: usize = 256;
 
+#[cfg(feature="encoder_ms_adpcm")]
 impl MSADPCMEncoder {
     fn new() -> Self { Self::default() }
     fn encode_packet(&mut self) -> EncoderResult<NAPacket> {
@@ -297,6 +305,7 @@ impl MSADPCMEncoder {
     }
 }
 
+#[cfg(feature="encoder_ms_adpcm")]
 impl NAEncoder for MSADPCMEncoder {
     fn negotiate_format(&self, encinfo: &EncodeParameters) -> EncoderResult<EncodeParameters> {
         match encinfo.format {
@@ -394,12 +403,14 @@ impl NAEncoder for MSADPCMEncoder {
     }
 }
 
+#[cfg(feature="encoder_ms_adpcm")]
 impl NAOptionHandler for MSADPCMEncoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="encoder_ms_adpcm")]
 pub fn get_encoder() -> Box<dyn NAEncoder + Send> {
     Box::new(MSADPCMEncoder::new())
 }

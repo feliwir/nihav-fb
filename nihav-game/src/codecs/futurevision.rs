@@ -1,10 +1,14 @@
 use nihav_core::frame::*;
 use nihav_core::formats;
+#[cfg(feature="decoder_fstaud")]
 use nihav_core::formats::NAChannelMap;
 use nihav_core::codecs::*;
+#[cfg(feature="decoder_fstvid")]
 use nihav_core::io::byteio::*;
+#[cfg(feature="decoder_fstaud")]
 use nihav_codec_support::codecs::imaadpcm::IMAState;
 
+#[cfg(feature="decoder_fstvid")]
 struct FutureVisionVideoDecoder {
     info:       NACodecInfoRef,
     pal:        [u8; 768],
@@ -13,6 +17,7 @@ struct FutureVisionVideoDecoder {
     h:          usize,
 }
 
+#[cfg(feature="decoder_fstvid")]
 struct Bits8<'a> {
     src:    &'a [u8],
     pos:    usize,
@@ -20,6 +25,7 @@ struct Bits8<'a> {
     bit:    u8,
 }
 
+#[cfg(feature="decoder_fstvid")]
 impl<'a> Bits8<'a> {
     fn new(src: &'a [u8]) -> Self { Bits8 { src, pos: 0, buf: 0, bit: 0 } }
     fn read_bit(&mut self) -> ByteIOResult<bool> {
@@ -39,6 +45,7 @@ impl<'a> Bits8<'a> {
     }
 }
 
+#[cfg(feature="decoder_fstvid")]
 impl FutureVisionVideoDecoder {
     fn new() -> Self {
         FutureVisionVideoDecoder {
@@ -65,6 +72,7 @@ impl FutureVisionVideoDecoder {
     }
 }
 
+#[cfg(feature="decoder_fstvid")]
 impl NADecoder for FutureVisionVideoDecoder {
     fn init(&mut self, _supp: &mut NADecoderSupport, info: NACodecInfoRef) -> DecoderResult<()> {
         if let NACodecTypeInfo::Video(vinfo) = info.get_properties() {
@@ -143,16 +151,19 @@ impl NADecoder for FutureVisionVideoDecoder {
     }
 }
 
+#[cfg(feature="decoder_fstvid")]
 impl NAOptionHandler for FutureVisionVideoDecoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="decoder_fstvid")]
 pub fn get_decoder_video() -> Box<dyn NADecoder + Send> {
     Box::new(FutureVisionVideoDecoder::new())
 }
 
+#[cfg(feature="decoder_fstaud")]
 struct FutureVisionAudioDecoder {
     ainfo:      NAAudioInfo,
     chmap:      NAChannelMap,
@@ -160,6 +171,7 @@ struct FutureVisionAudioDecoder {
     count:      usize,
 }
 
+#[cfg(feature="decoder_fstaud")]
 impl FutureVisionAudioDecoder {
     fn new() -> Self {
         FutureVisionAudioDecoder {
@@ -171,6 +183,7 @@ impl FutureVisionAudioDecoder {
     }
 }
 
+#[cfg(feature="decoder_fstaud")]
 impl NADecoder for FutureVisionAudioDecoder {
     fn init(&mut self, _supp: &mut NADecoderSupport, info: NACodecInfoRef) -> DecoderResult<()> {
         if let NACodecTypeInfo::Audio(ainfo) = info.get_properties() {
@@ -209,12 +222,14 @@ impl NADecoder for FutureVisionAudioDecoder {
     }
 }
 
+#[cfg(feature="decoder_fstaud")]
 impl NAOptionHandler for FutureVisionAudioDecoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="decoder_fstaud")]
 pub fn get_decoder_audio() -> Box<dyn NADecoder + Send> {
     Box::new(FutureVisionAudioDecoder::new())
 }

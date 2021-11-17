@@ -1,19 +1,23 @@
 use nihav_core::formats::*;
 use nihav_core::codecs::*;
+#[cfg(feature="encoder_pcm")]
 use nihav_core::io::byteio::*;
 
 #[derive(Clone,Copy,Debug,PartialEq)]
+#[cfg(feature="decoder_pcm")]
 enum PCMMode {
     Infinity,
     ALaw,
     MuLaw,
 }
 
+#[cfg(feature="decoder_pcm")]
 struct PCMDecoder {
     chmap:  NAChannelMap,
     mode:   PCMMode,
 }
 
+#[cfg(feature="decoder_pcm")]
 fn cvt_alaw(val: u8) -> i16 {
     let val = val ^ 0x55;
     let sign = (val & 0x80) != 0;
@@ -23,6 +27,7 @@ fn cvt_alaw(val: u8) -> i16 {
     if sign { aval } else { -aval }
 }
 
+#[cfg(feature="decoder_pcm")]
 fn cvt_mulaw(val: u8) -> i16 {
     let val = !val;
     let sign = (val & 0x80) != 0;
@@ -32,6 +37,7 @@ fn cvt_mulaw(val: u8) -> i16 {
     if !sign { aval } else { -aval }
 }
 
+#[cfg(feature="decoder_pcm")]
 impl PCMDecoder {
     fn new(mode: PCMMode) -> Self {
         PCMDecoder { chmap: NAChannelMap::new(), mode }
@@ -55,9 +61,12 @@ impl PCMDecoder {
     }
 }
 
+#[cfg(feature="decoder_pcm")]
 const CHMAP_MONO: [NAChannelType; 1] = [NAChannelType::C];
+#[cfg(feature="decoder_pcm")]
 const CHMAP_STEREO: [NAChannelType; 2] = [NAChannelType::L, NAChannelType::R];
 
+#[cfg(feature="decoder_pcm")]
 fn get_default_chmap(nch: u8) -> NAChannelMap {
     let mut chmap = NAChannelMap::new();
     match nch {
@@ -68,6 +77,7 @@ fn get_default_chmap(nch: u8) -> NAChannelMap {
     chmap
 }
 
+#[cfg(feature="decoder_pcm")]
 fn get_duration(ainfo: &NAAudioInfo, duration: Option<u64>, data_size: usize) -> u64 {
     if duration == None {
         let size_bits = (data_size as u64) * 8;
@@ -78,6 +88,7 @@ fn get_duration(ainfo: &NAAudioInfo, duration: Option<u64>, data_size: usize) ->
     }
 }
 
+#[cfg(feature="decoder_pcm")]
 impl NADecoder for PCMDecoder {
     fn init(&mut self, _supp: &mut NADecoderSupport, info: NACodecInfoRef) -> DecoderResult<()> {
         if let NACodecTypeInfo::Audio(ainfo) = info.get_properties() {
@@ -109,29 +120,35 @@ impl NADecoder for PCMDecoder {
     }
 }
 
+#[cfg(feature="decoder_pcm")]
 impl NAOptionHandler for PCMDecoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="decoder_pcm")]
 pub fn get_decoder() -> Box<dyn NADecoder + Send> {
     Box::new(PCMDecoder::new(PCMMode::Infinity))
 }
 
+#[cfg(feature="decoder_pcm")]
 pub fn get_a_law_decoder() -> Box<dyn NADecoder + Send> {
     Box::new(PCMDecoder::new(PCMMode::ALaw))
 }
 
+#[cfg(feature="decoder_pcm")]
 pub fn get_mu_law_decoder() -> Box<dyn NADecoder + Send> {
     Box::new(PCMDecoder::new(PCMMode::MuLaw))
 }
 
+#[cfg(feature="encoder_pcm")]
 struct PCMEncoder {
     stream: Option<NAStreamRef>,
     pkt:    Option<NAPacket>,
 }
 
+#[cfg(feature="encoder_pcm")]
 impl PCMEncoder {
     fn new() -> Self {
         PCMEncoder {
@@ -141,6 +158,7 @@ impl PCMEncoder {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! write_buffer {
     ($abuf: expr, $dvec: expr, $write_be: ident, $write_le: ident, $dtype: tt) => {
         let info = $abuf.get_info();
@@ -166,6 +184,7 @@ macro_rules! write_buffer {
     }
 }
 
+#[cfg(feature="encoder_pcm")]
 impl NAEncoder for PCMEncoder {
     fn negotiate_format(&self, encinfo: &EncodeParameters) -> EncoderResult<EncodeParameters> {
         match encinfo.format {
@@ -246,12 +265,14 @@ impl NAEncoder for PCMEncoder {
     }
 }
 
+#[cfg(feature="encoder_pcm")]
 impl NAOptionHandler for PCMEncoder {
     fn get_supported_options(&self) -> &[NAOptionDefinition] { &[] }
     fn set_options(&mut self, _options: &[NAOption]) { }
     fn query_option_value(&self, _name: &str) -> Option<NAValue> { None }
 }
 
+#[cfg(feature="encoder_pcm")]
 pub fn get_encoder() -> Box<dyn NAEncoder + Send> {
     Box::new(PCMEncoder::new())
 }

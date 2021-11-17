@@ -1,5 +1,6 @@
 use nihav_core::codecs::*;
 
+#[allow(unused_macros)]
 macro_rules! validate {
     ($a:expr) => { if !$a { println!("check failed at {}:{}", file!(), line!()); return Err(DecoderError::InvalidData); } };
 }
