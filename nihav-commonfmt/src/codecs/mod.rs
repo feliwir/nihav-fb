@@ -31,6 +31,7 @@ mod sipro;
 #[cfg(feature="decoder_ts102366")]
 mod ts102366;
 
+#[cfg(feature="decoders")]
 const DECODERS: &[DecoderInfo] = &[
 #[cfg(feature="decoder_cinepak")]
     DecoderInfo { name: "cinepak", get_decoder: cinepak::get_decoder },
@@ -62,6 +63,7 @@ const DECODERS: &[DecoderInfo] = &[
 ];
 
 /// Registers all available codecs provided by this crate.
+#[cfg(feature="decoders")]
 pub fn generic_register_all_decoders(rd: &mut RegisteredDecoders) {
     for decoder in DECODERS.iter() {
         rd.add_decoder(*decoder);
@@ -73,6 +75,7 @@ mod cinepakenc;
 #[cfg(feature="encoder_zmbv")]
 mod zmbvenc;
 
+#[cfg(feature="encoders")]
 const ENCODERS: &[EncoderInfo] = &[
 #[cfg(feature="encoder_cinepak")]
     EncoderInfo { name: "cinepak", get_encoder: cinepakenc::get_encoder },
@@ -84,6 +87,7 @@ const ENCODERS: &[EncoderInfo] = &[
 ];
 
 /// Registers all available encoders provided by this crate.
+#[cfg(feature="encoders")]
 pub fn generic_register_all_encoders(re: &mut RegisteredEncoders) {
     for encoder in ENCODERS.iter() {
         re.add_encoder(*encoder);

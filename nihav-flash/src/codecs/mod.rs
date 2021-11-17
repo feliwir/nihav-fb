@@ -14,6 +14,7 @@ mod adpcm;
 #[cfg(feature="decoder_asao")]
 mod asao;
 
+#[cfg(feature="decoders")]
 const DECODERS: &[DecoderInfo] = &[
 #[cfg(feature="decoder_flv263")]
     DecoderInfo { name: "flv263", get_decoder: flv263::get_decoder },
@@ -29,6 +30,7 @@ const DECODERS: &[DecoderInfo] = &[
 ];
 
 /// Registers all available codecs provided by this crate.
+#[cfg(feature="decoders")]
 pub fn flash_register_all_decoders(rd: &mut RegisteredDecoders) {
     for decoder in DECODERS.iter() {
         rd.add_decoder(*decoder);
@@ -38,12 +40,14 @@ pub fn flash_register_all_decoders(rd: &mut RegisteredDecoders) {
 #[cfg(feature="encoder_flv_adpcm")]
 mod adpcmenc;
 
+#[cfg(feature="encoders")]
 const ENCODERS: &[EncoderInfo] = &[
 #[cfg(feature="encoder_flv_adpcm")]
     EncoderInfo { name: "flv-adpcm", get_encoder: adpcmenc::get_encoder },
 ];
 
 /// Registers all available encoders provided by this crate.
+#[cfg(feature="encoders")]
 pub fn flash_register_all_encoders(re: &mut RegisteredEncoders) {
     for encoder in ENCODERS.iter() {
         re.add_encoder(*encoder);

@@ -3,7 +3,7 @@ extern crate nihav_core;
 extern crate nihav_codec_support;
 extern crate nihav_registry;
 
-#[cfg(feature="decoders")]
+#[cfg(any(feature="decoders", feature="encoders"))]
 #[allow(clippy::needless_range_loop)]
 #[allow(clippy::single_match)]
 #[allow(clippy::unreadable_literal)]
