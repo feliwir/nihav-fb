@@ -218,7 +218,7 @@ impl VP56Parser for VP5BR {
     fn decode_block_huff(&self, _br: &mut BitReader, _coeffs: &mut [i16; 64], _vp6model: &VP6Models, _model: &VP6HuffModels, _fstate: &mut FrameState) -> DecoderResult<()> {
         unreachable!();
     }
-    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_str: i16) {
+    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_tab: &[i16; 256]) {
         let (sx, sy, mx, my) = if (plane != 1) && (plane != 2) {
                 (mv.x >> 1, mv.y >> 1, mv.x & 1, mv.y & 1)
             } else {
@@ -230,7 +230,7 @@ impl VP56Parser for VP5BR {
             } else {
                 mode1
             };
-        vp_copy_block(dst, src, plane, x, y, sx, sy, 0, 1, loop_str,
+        vp_copy_block_tab(dst, src, plane, x, y, sx, sy, 0, 1, loop_tab,
                       mode, VP3_INTERP_FUNCS, mc_buf);
     }
 }

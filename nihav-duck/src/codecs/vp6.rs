@@ -302,7 +302,7 @@ impl VP56Parser for VP6BR {
 
         Ok(())
     }
-    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mut mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_str: i16) {
+    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mut mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_tab: &[i16;256]) {
         let is_luma = (plane != 1) && (plane != 2);
         let (sx, sy, mx, my, msx, msy) = if is_luma {
                 (mv.x >> 2, mv.y >> 2, (mv.x & 3) << 1, (mv.y & 3) << 1, mv.x / 4, mv.y / 4)
@@ -314,12 +314,12 @@ impl VP56Parser for VP6BR {
         if (msx & 7) != 0 {
             let foff = (8 - (sx & 7)) as usize;
             let off = 2 + foff;
-            vp31_loop_filter(tmp_blk, off, 1, 16, 12, loop_str);
+            vp31_loop_filter_tab(tmp_blk, off, 1, 16, 12, loop_tab);
         }
         if (msy & 7) != 0 {
             let foff = (8 - (sy & 7)) as usize;
             let off = (2 + foff) * 16;
-            vp31_loop_filter(tmp_blk, off, 16, 1, 12, loop_str);
+            vp31_loop_filter_tab(tmp_blk, off, 16, 1, 12, loop_tab);
         }
         let copy_mode = (mx == 0) && (my == 0);
         let mut bicubic = !copy_mode && is_luma && self.bicubic;

@@ -249,7 +249,7 @@ pub trait VP56Parser {
     fn decode_coeff_models(&self, bc: &mut BoolCoder, models: &mut VP56Models, is_intra: bool) -> DecoderResult<()>;
     fn decode_block(&self, bc: &mut BoolCoder, coeffs: &mut [i16; 64], model: &VP56CoeffModel, vp6model: &VP6Models, fstate: &mut FrameState) -> DecoderResult<()>;
     fn decode_block_huff(&self, br: &mut BitReader, coeffs: &mut [i16; 64], vp6model: &VP6Models, model: &VP6HuffModels, fstate: &mut FrameState) -> DecoderResult<()>;
-    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_thr: i16);
+    fn mc_block(&self, dst: &mut NASimpleVideoFrame<u8>, mc_buf: NAVideoBufferRef<u8>, src: NAVideoBufferRef<u8>, plane: usize, x: usize, y: usize, mv: MV, loop_tab: &[i16; 256]);
 }
 
 enum CoeffReader<'a> {
@@ -357,6 +357,7 @@ pub struct VP56Decoder {
     last_mbt:   VPMBType,
 
     loop_thr:   i16,
+    loop_tab:   [i16; 256],
     ilace_prob: u8,
     ilace_mb:   bool,
 
@@ -440,6 +441,7 @@ impl VP56Decoder {
             last_mbt:   VPMBType::InterNoMV,
 
             loop_thr:   0,
+            loop_tab:   [0; 256],
             ilace_prob: 0,
             ilace_mb:   false,
 
@@ -974,15 +976,15 @@ impl VP56Decoder {
                 self.shuf.get_golden().unwrap()
             };
 
-        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 0, y + 0, mv, self.loop_thr);
-        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 8, y + 0, mv, self.loop_thr);
-        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 0, y + 8, mv, self.loop_thr);
-        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 8, y + 8, mv, self.loop_thr);
+        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 0, y + 0, mv, &self.loop_tab);
+        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 8, y + 0, mv, &self.loop_tab);
+        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 0, y + 8, mv, &self.loop_tab);
+        br.mc_block(frm, self.mc_buf.clone(), src.clone(), plane, x + 8, y + 8, mv, &self.loop_tab);
         if !alpha {
             let x = self.fstate.mb_x * 8;
             let y = self.fstate.mb_y * 8;
-            br.mc_block(frm, self.mc_buf.clone(), src.clone(), 1, x, y, mv, self.loop_thr);
-            br.mc_block(frm, self.mc_buf.clone(), src,         2, x, y, mv, self.loop_thr);
+            br.mc_block(frm, self.mc_buf.clone(), src.clone(), 1, x, y, mv, &self.loop_tab);
+            br.mc_block(frm, self.mc_buf.clone(), src,         2, x, y, mv, &self.loop_tab);
         }
     }
     fn do_fourmv(&mut self, br: &dyn VP56Parser, frm: &mut NASimpleVideoFrame<u8>, mvs: &[MV; 4], alpha: bool) {
@@ -993,15 +995,15 @@ impl VP56Decoder {
         for blk_no in 0..4 {
             br.mc_block(frm, self.mc_buf.clone(), src.clone(),
                         plane, x + (blk_no & 1) * 8, y + (blk_no & 2) * 4,
-                        mvs[blk_no], self.loop_thr);
+                        mvs[blk_no], &self.loop_tab);
         }
         if !alpha {
             let x = self.fstate.mb_x * 8;
             let y = self.fstate.mb_y * 8;
             let sum = mvs[0] + mvs[1] + mvs[2] + mvs[3];
             let mv = MV { x: sum.x / 4, y: sum.y / 4 };
-            br.mc_block(frm, self.mc_buf.clone(), src.clone(), 1, x, y, mv, self.loop_thr);
-            br.mc_block(frm, self.mc_buf.clone(), src,         2, x, y, mv, self.loop_thr);
+            br.mc_block(frm, self.mc_buf.clone(), src.clone(), 1, x, y, mv, &self.loop_tab);
+            br.mc_block(frm, self.mc_buf.clone(), src,         2, x, y, mv, &self.loop_tab);
         }
     }
     fn predict_dc(&mut self, mb_type: VPMBType, _mb_pos: usize, blk_no: usize, _alpha: bool) {
