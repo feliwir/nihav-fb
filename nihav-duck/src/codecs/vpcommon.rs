@@ -354,7 +354,7 @@ pub fn vp_add_block_dc(coeffs: &mut [i16; 64], bx: usize, by: usize, plane: usiz
     }
 }
 
-pub fn vp31_loop_filter(data: &mut [u8], mut off: usize, step: usize, stride: usize,
+pub fn vp31_loop_filter(data: &mut [u8], off: usize, step: usize, stride: usize,
     len: usize, loop_str: i16) {
     let mut loop_tab : [i16; 256] = [0;256];
     calc_loop_tab(loop_str, &mut loop_tab);
@@ -395,7 +395,7 @@ pub fn calc_loop_tab(loop_str: i16, tab: &mut[i16; 256]) {
 pub fn vp_copy_block(dst: &mut NASimpleVideoFrame<u8>, src: NAVideoBufferRef<u8>, comp: usize,
     dx: usize, dy: usize, mv_x: i16, mv_y: i16,
     preborder: usize, postborder: usize, loop_thr: i16,
-    mode: usize, interp: &[BlkInterpFunc], mut mc_buf: NAVideoBufferRef<u8>)
+    mode: usize, interp: &[BlkInterpFunc], mc_buf: NAVideoBufferRef<u8>)
 {
     let mut loop_tab : [i16; 256] = [0;256];
     calc_loop_tab(loop_thr, &mut loop_tab);
