@@ -377,8 +377,8 @@ pub fn calc_loop_tab(loop_str: i16, tab: &mut[i16; 256]) {
     }
   }
 
-  #[inline]
-  pub fn vp31_loop_filter_tab(data: &mut [u8], mut off: usize, step: usize, stride: usize, len: usize, loop_tab: &[i16; 256]) {
+#[inline(always)]
+fn vp31_loop_filter_tab(data: &mut [u8], mut off: usize, step: usize, stride: usize, len: usize, loop_tab: &[i16; 256]) {
     for _ in 0..len {
         let a = i16::from(data[(off - step * 2) as usize]);
         let b = i16::from(data[(off - step) as usize]);
@@ -390,6 +390,14 @@ pub fn calc_loop_tab(loop_str: i16, tab: &mut[i16; 256]) {
 
         off += stride;
     }
+}
+
+pub fn vp31_loop_filter_step1_stride16(data: &mut [u8], off: usize, len: usize, loop_tab: &[i16; 256]) {
+    vp31_loop_filter_tab(data, off, 1, 16, len, loop_tab);
+}
+
+pub fn vp31_loop_filter_step16_stride1(data: &mut [u8], off: usize, len: usize, loop_tab: &[i16; 256]) {
+    vp31_loop_filter_tab(data, off, 16, 1, len, loop_tab);
 }
 
 pub fn vp_copy_block(dst: &mut NASimpleVideoFrame<u8>, src: NAVideoBufferRef<u8>, comp: usize,
