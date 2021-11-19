@@ -361,7 +361,7 @@ pub fn vp31_loop_filter(data: &mut [u8], mut off: usize, step: usize, stride: us
     vp31_loop_filter_tab(data, off, step, stride, len, &loop_tab);
 }
 
-fn calc_loop_tab(loop_str: i16, tab: &mut[i16; 256]) {
+pub fn calc_loop_tab(loop_str: i16, tab: &mut[i16; 256]) {
     for diff in -128..128_i16 {
      tab[(diff + 128) as usize] = if diff.abs() >= 2 * loop_str {
          0
