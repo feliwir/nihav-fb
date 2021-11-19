@@ -389,7 +389,7 @@ pub count2: usize,
 }
 
 impl MVEstimator {
-    pub fn new(ref_frame: NAVideoBufferRef<u8>, mc_buf: NAVideoBufferRef<u8>, loop_tab: &[i16;256], mv_range: i16) -> Self {
+    pub fn new(ref_frame: NAVideoBufferRef<u8>, mc_buf: NAVideoBufferRef<u8>, loop_tab: [i16;256], mv_range: i16) -> Self {
         Self {
             ref_blk:        [[0; 64]; 6],
             ref_frame, mc_buf,
@@ -399,7 +399,7 @@ impl MVEstimator {
             mv_thresh:      0,
             var_thresh:     0,
             filter_alpha:   0,
-            loop_tab:       [0;256],
+            loop_tab,
             mv_range,
 count: 0,
 count2: 0,

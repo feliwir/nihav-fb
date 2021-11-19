@@ -355,7 +355,7 @@ impl FrameEncoder {
 
         let mut cur_blk = [[0u8; 64]; 6];
 
-        let mut mv_est = MVEstimator::new(ref_frame, mc_buf, &loop_tab, self.me_range);
+        let mut mv_est = MVEstimator::new(ref_frame, mc_buf, loop_tab, self.me_range);
 
         let mut mv_search: Box<dyn MVSearch> = match self.me_mode {
                 MVSearchMode::Full      => Box::new(FullMVSearch::new()),
@@ -408,7 +408,7 @@ impl FrameEncoder {
         let mut cur_blk = [[0u8; 64]; 6];
         self.src_mbs[mb_pos].fill(&mut cur_blk);
 
-        let mut mv_est = MVEstimator::new(ref_frame, mc_buf, &loop_tab, self.me_range);
+        let mut mv_est = MVEstimator::new(ref_frame, mc_buf, loop_tab, self.me_range);
 
         let mut mv_search: Box<dyn MVSearch> = match self.me_mode {
                 MVSearchMode::Full      => Box::new(FullMVSearch::new()),
